@@ -5,6 +5,7 @@
   "description": "A streaming server for Netfree files on Vercel",
   "main": "api/stream.js",
   "dependencies": {
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "formidable": "^3.5.1"
   }
 }
