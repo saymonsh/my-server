@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     console.log(`DEBUG FILENAME: Found Content-Disposition header: ${disposition}`);
     
     if (disposition) {
-      const filenameMatch = disposition.match(/filename=(.+?)/i); // Case-insensitive match
+      const filenameMatch = disposition.match(/filename=(.*)/i); // Case-insensitive match
       if (filenameMatch && filenameMatch.length > 1) {
         fileName = filenameMatch[1];
         console.log(`DEBUG FILENAME: Extracted filename from Content-Disposition: ${fileName}`);
