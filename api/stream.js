@@ -9,7 +9,6 @@ export default async function handler(req, res) {
   }
 
   const { fileUrl } = req.body;
-
   if (!fileUrl) {
     return res.status(400).json({ error: 'fileUrl is required in the request body' });
   }
@@ -19,7 +18,6 @@ export default async function handler(req, res) {
       method: 'get',
       url: fileUrl,
       responseType: 'stream',
-      // Header שמזדהה בדיוק כמו הבקשה של Make.com
       headers: {
         'User-Agent': 'Make/production'
       }
@@ -31,24 +29,40 @@ export default async function handler(req, res) {
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', encodeURIComponent(fileName));
     
-    response.data.pipe(res);
+    // --- קוד הזרמה משופר ויציב ---
+    // עוטפים את כל תהליך ההזרמה ב-Promise כדי שהפונקציה תחכה לסיומו
+    await new Promise((resolve, reject) => {
+      const dataStream = response.data;
+
+      // מאזינים לאירוע 'data': כל פעם שמגיע חלק מהקובץ, כותבים אותו לתגובה
+      dataStream.on('data', chunk => res.write(chunk));
+      
+      // מאזינים לאירוע 'end': כשהקובץ הסתיים, סוגרים את התגובה
+      dataStream.on('end', () => {
+        res.end();
+        resolve();
+      });
+
+      // מאזינים לאירוע 'error': אם יש שגיאה במהלך ההזרמה
+      dataStream.on('error', (err) => {
+        console.error('Stream pipe error:', err);
+        reject(err);
+      });
+    });
 
   } catch (error) {
+    // קוד לטיפול בשגיאות שנשאר כמו קודם
     console.error('--- AXIOS ERROR DETAILS ---');
     if (error.response) {
       console.error('Status:', error.response.status);
       console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
-      console.error('Data:', error.response.data);
-    } else if (error.request) {
-      console.error('Request:', error.request);
     } else {
       console.error('Error Message:', error.message);
     }
     console.error('--- END OF ERROR DETAILS ---');
     
-    res.status(500).json({ 
-      error: 'Failed to stream the file. See Vercel logs for details.',
-      status: error.response ? error.response.status : 'N/A' 
-    });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to stream the file.' });
+    }
   }
 }
