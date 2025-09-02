@@ -3,27 +3,27 @@ import url from 'url';
 import path from 'path';
 
 export default async function handler(req, res) {
-  // We expect the URL to be a query parameter, e.g., /api/stream?url=...
-  const { fileUrl } = req.query;
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).end('Method Not Allowed');
+  }
 
+  const { fileUrl } = req.body;
   if (!fileUrl) {
-    return res.status(400).send('Missing "url" query parameter');
+    return res.status(400).json({ error: 'fileUrl is required in the request body' });
   }
 
   try {
-    const decodedUrl = decodeURIComponent(fileUrl);
-
     const response = await axios({
       method: 'get',
-      url: decodedUrl,
+      url: fileUrl,
       responseType: 'stream',
       headers: {
         'User-Agent': 'Make/production'
       }
     });
 
-    // --- לוגיקה לקביעת שם הקובץ (נשארת זהה) ---
-    let fileName = 'downloaded-file.dat';
+    let fileName = 'downloaded_file.dat';
     const disposition = response.headers['content-disposition'];
     
     if (disposition) {
@@ -32,30 +32,32 @@ export default async function handler(req, res) {
         fileName = filenameMatch[1].replace(/"/g, '').trim();
       }
     } else {
-      const parsedUrl = new url.URL(decodedUrl);
+      const parsedUrl = new url.URL(fileUrl);
       fileName = path.basename(parsedUrl.pathname) || fileName;
     }
     
-    // --- השינוי המרכזי: הגדרת כותרת התגובה ---
-    // This header tells the browser to treat the response as a download
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    const totalSize = response.headers['content-length'];
     
-    // We can also pass the content type from the source
-    if (response.headers['content-type']) {
-        res.setHeader('Content-Type', response.headers['content-type']);
-    }
-
-    // Stream the file content back to the browser
-    response.data.pipe(res);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('X-Filename', encodeURIComponent(fileName));
+    res.setHeader('X-Filesize', totalSize || 0);
+    
+    await new Promise((resolve, reject) => {
+      const dataStream = response.data;
+      dataStream.on('data', chunk => res.write(chunk));
+      dataStream.on('end', () => {
+        res.end();
+        resolve();
+      });
+      dataStream.on('error', (err) => {
+        console.error('Stream pipe error:', err);
+        reject(err);
+      });
+    });
 
   } catch (error) {
-    console.error('--- AXIOS ERROR DETAILS ---');
-    if (error.response) {
-      console.error('Status:', error.response.status);
-    } else {
-      console.error('Error Message:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to stream the file.' });
     }
-    
-    res.status(500).send(`Failed to stream the file. Error: ${error.message}`);
   }
 }
