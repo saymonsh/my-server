@@ -1,6 +1,6 @@
-const axios = require('axios');
-const url = require('url');
-const path = require('path');
+import axios from 'axios';
+import url from 'url';
+import path from 'path';
 
 // Vercel Serverless Function format
 export default async function handler(req, res) {
