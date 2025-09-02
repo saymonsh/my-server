@@ -1,5 +1,6 @@
 {
   "name": "file-streamer",
+  "type": "module",
   "version": "1.0.0",
   "description": "A streaming server for Netfree files on Vercel",
   "main": "api/stream.js",
