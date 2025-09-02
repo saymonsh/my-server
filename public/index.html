@@ -1,37 +1,85 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>מנהל הקבצים</title>
-    <link rel="stylesheet" href="/styles.css">
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>מנהל קבצים</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style type="text/tailwindcss">
+        :root {
+            --primary-color: #137fec;
+            --secondary-color: #e0effc;
+            --background-color: #f8faff;
+            --text-primary: #1a202c;
+            --text-secondary: #5a677d;
+            --accent-color: #137fec;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <h1>העלאה ושמירת קבצים</h1>
-        
-        <form id="uploadForm" enctype="multipart/form-data">
-            <input type="file" name="file" required>
-            <button type="submit">העלה קובץ</button>
-        </form>
-        <p id="message"></p>
-        
-        <hr>
-        
-        <h2>קבצים שהועלו</h2>
-        <ul id="fileList">
-            </ul>
+<body class="bg-[var(--background-color)] text-[var(--text-primary)]">
+    <div class="flex min-h-screen flex-col">
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex h-16 items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span class="material-symbols-outlined text-[var(--primary-color)] text-3xl">folder_managed</span>
+                        <h1 class="text-xl font-bold tracking-tight">מנהל קבצים</h1>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main class="flex-grow">
+            <div class="container mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                <div class="mb-6 flex items-center justify-between">
+                    <h2 class="text-2xl font-bold text-[var(--text-primary)]">קבצים</h2>
+                    <form id="uploadForm" enctype="multipart/form-data" class="flex items-center gap-2">
+                        <label for="file-upload" class="flex items-center justify-center gap-2 rounded-md bg-[var(--primary-color)] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-offset-2 cursor-pointer">
+                            <span class="material-symbols-outlined">upload_file</span>
+                            <span>העלה קובץ</span>
+                        </label>
+                        <input id="file-upload" type="file" name="file" class="sr-only" accept=".pdf" required>
+                    </form>
+                </div>
+                <p id="message" class="text-sm font-medium text-center mb-4"></p>
+                <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" scope="col">שם קובץ</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" scope="col">פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="file-list" class="divide-y divide-gray-200 bg-white">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
     </div>
 
     <script>
         const uploadForm = document.getElementById('uploadForm');
-        const fileList = document.getElementById('fileList');
-        const message = document.getElementById('message');
+        const fileInput = document.getElementById('file-upload');
+        const fileListBody = document.getElementById('file-list');
+        const messageDisplay = document.getElementById('message');
 
-        // פונקציה לשליחת הקובץ לשרת
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        fileInput.addEventListener('change', async () => {
             const formData = new FormData(uploadForm);
             
+            messageDisplay.textContent = 'מעלה קובץ, נא להמתין...';
+            messageDisplay.style.color = '#137fec';
+
             try {
                 const response = await fetch('/api/upload', {
                     method: 'POST',
@@ -41,33 +89,33 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    message.textContent = result.message;
-                    message.style.color = 'green';
-                    addFileToList(result.filepath, result.filename);
+                    messageDisplay.textContent = result.message;
+                    messageDisplay.style.color = 'green';
+                    addFileToTable(result.filename, result.filepath);
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
-                message.textContent = `שגיאה: ${error.message}`;
-                message.style.color = 'red';
+                messageDisplay.textContent = `שגיאה: ${error.message}`;
+                messageDisplay.style.color = 'red';
             }
         });
 
-        // פונקציה להוספת קובץ לרשימה בדף
-        function addFileToList(filepath, filename) {
-            const li = document.createElement('li');
-            const a = document.createElement('a');
-            a.href = filepath;
-            a.textContent = filename || filepath.split('/').pop();
-            a.target = "_blank";
-            a.download = ""; // הוספת התכונה download תגרום להורדה ישירה
-            li.appendChild(a);
-            fileList.appendChild(li);
-        }
+        function addFileToTable(filename, filepath) {
+            const newRow = document.createElement('tr');
+            newRow.classList.add('hover:bg-gray-50');
 
-        // פונקציה לטעינת רשימת הקבצים הקיימים (תוכלו לממש אותה בהמשך)
-        // לצורך בדיקה ראשונית, נדלג על זה כרגע.
-        // אבל ברמה מתקדמת יותר, תצטרכו להגדיר נקודת קצה API שתחזיר רשימה של קבצים מתיקיית 'uploads'.
+            newRow.innerHTML = `
+                <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-[var(--text-primary)]">${filename}</td>
+                <td class="whitespace-nowrap px-6 py-4 text-sm text-[var(--text-secondary)]">
+                    <a class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700" href="${filepath}" target="_blank" download>
+                        <span class="material-symbols-outlined text-base">download</span>
+                        <span>הורד</span>
+                    </a>
+                </td>
+            `;
+            fileListBody.appendChild(newRow);
+        }
     </script>
 </body>
 </html>
