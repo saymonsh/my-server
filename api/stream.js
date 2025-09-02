@@ -23,19 +23,31 @@ export default async function handler(req, res) {
       }
     });
 
-    let fileName = 'downloaded_file.dat';
+    // --- לוגיקה משודרגת לקביעת שם הקובץ עם דיבוג ---
+    console.log("DEBUG FILENAME: Starting filename detection.");
+    console.log("DEBUG FILENAME: All headers from source:", JSON.stringify(response.headers, null, 2));
+
+    let fileName = 'downloaded_file'; // שם קובץ ברירת מחדל
     const disposition = response.headers['content-disposition'];
+    console.log(`DEBUG FILENAME: Found Content-Disposition header: ${disposition}`);
     
     if (disposition) {
-      const filenameMatch = disposition.match(/filename=(.*)/i);
-      if (filenameMatch && filenameMatch[1]) {
-        fileName = filenameMatch[1].replace(/"/g, '').trim();
+      const filenameMatch = disposition.match(/filename=(.+?)/i); // Case-insensitive match
+      if (filenameMatch && filenameMatch.length > 1) {
+        fileName = filenameMatch[1];
+        console.log(`DEBUG FILENAME: Extracted filename from Content-Disposition: ${fileName}`);
+      } else {
+        console.log("DEBUG FILENAME: Content-Disposition found, but couldn't extract filename from it.");
       }
     } else {
+      console.log("DEBUG FILENAME: No Content-Disposition header found. Falling back to URL path.");
       const parsedUrl = new url.URL(fileUrl);
       fileName = path.basename(parsedUrl.pathname) || fileName;
+      console.log(`DEBUG FILENAME: Extracted filename from URL path: ${fileName}`);
     }
+    // -----------------------------------------
     
+    console.log(`DEBUG FILENAME: Final filename to be sent: ${fileName}`);
     const totalSize = response.headers['content-length'];
     
     res.setHeader('Content-Type', 'application/octet-stream');
@@ -56,6 +68,14 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    console.error('--- AXIOS ERROR DETAILS ---');
+    if (error.response) {
+      console.error('Status:', error.response.status);
+    } else {
+      console.error('Error Message:', error.message);
+    }
+    console.error('--- END OF ERROR DETAILS ---');
+    
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to stream the file.' });
     }
