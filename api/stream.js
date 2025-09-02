@@ -23,35 +23,34 @@ export default async function handler(req, res) {
       }
     });
 
-    // --- דיבוג 1: הדפסת גודל הקובץ ---
+    // --- לוגיקה משודרגת לקביעת שם הקובץ ---
+    let fileName = 'downloaded-file'; // שם קובץ ברירת מחדל
+    const disposition = response.headers['content-disposition'];
+    
+    if (disposition) {
+      const filenameMatch = disposition.match(/filename="(.+?)"/);
+      if (filenameMatch && filenameMatch.length > 1) {
+        fileName = filenameMatch[1];
+      }
+    } else {
+      // אם אין Header, חוזרים לשיטה הישנה של ניתוח ה-URL
+      const parsedUrl = new url.URL(fileUrl);
+      fileName = path.basename(parsedUrl.pathname) || fileName;
+    }
+    // -----------------------------------------
+    
     const totalSize = response.headers['content-length'];
-    console.log(`File connection successful. Total size: ${totalSize ? (totalSize / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown'}`);
-
-    const parsedUrl = new url.URL(fileUrl);
-    const fileName = path.basename(parsedUrl.pathname) || 'downloaded-file';
     
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', encodeURIComponent(fileName));
-    
-    let bytesStreamed = 0;
-    let megabytesStreamed = 0;
-    console.log('Starting stream...');
+    res.setHeader('X-Filesize', totalSize || 0);
     
     await new Promise((resolve, reject) => {
       const dataStream = response.data;
 
-      dataStream.on('data', chunk => {
-        bytesStreamed += chunk.length;
-        // --- דיבוג 2: הדפסת התקדמות ההזרמה ---
-        if (bytesStreamed >= (megabytesStreamed + 1) * 1024 * 1024) {
-          megabytesStreamed++;
-          console.log(`... Streamed ${megabytesStreamed} MB`);
-        }
-        res.write(chunk);
-      });
+      dataStream.on('data', chunk => res.write(chunk));
       
       dataStream.on('end', () => {
-        console.log(`Stream finished. Total bytes streamed: ${(bytesStreamed / 1024 / 1024).toFixed(2)} MB`);
         res.end();
         resolve();
       });
@@ -66,6 +65,7 @@ export default async function handler(req, res) {
     console.error('--- AXIOS ERROR DETAILS ---');
     if (error.response) {
       console.error('Status:', error.response.status);
+      console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
     } else {
       console.error('Error Message:', error.message);
     }
