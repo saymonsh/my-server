@@ -23,27 +23,39 @@ export default async function handler(req, res) {
       }
     });
 
+    // --- דיבוג 1: הדפסת גודל הקובץ ---
+    const totalSize = response.headers['content-length'];
+    console.log(`File connection successful. Total size: ${totalSize ? (totalSize / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown'}`);
+
     const parsedUrl = new url.URL(fileUrl);
     const fileName = path.basename(parsedUrl.pathname) || 'downloaded-file';
     
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', encodeURIComponent(fileName));
     
-    // --- קוד הזרמה משופר ויציב ---
-    // עוטפים את כל תהליך ההזרמה ב-Promise כדי שהפונקציה תחכה לסיומו
+    let bytesStreamed = 0;
+    let megabytesStreamed = 0;
+    console.log('Starting stream...');
+    
     await new Promise((resolve, reject) => {
       const dataStream = response.data;
 
-      // מאזינים לאירוע 'data': כל פעם שמגיע חלק מהקובץ, כותבים אותו לתגובה
-      dataStream.on('data', chunk => res.write(chunk));
+      dataStream.on('data', chunk => {
+        bytesStreamed += chunk.length;
+        // --- דיבוג 2: הדפסת התקדמות ההזרמה ---
+        if (bytesStreamed >= (megabytesStreamed + 1) * 1024 * 1024) {
+          megabytesStreamed++;
+          console.log(`... Streamed ${megabytesStreamed} MB`);
+        }
+        res.write(chunk);
+      });
       
-      // מאזינים לאירוע 'end': כשהקובץ הסתיים, סוגרים את התגובה
       dataStream.on('end', () => {
+        console.log(`Stream finished. Total bytes streamed: ${(bytesStreamed / 1024 / 1024).toFixed(2)} MB`);
         res.end();
         resolve();
       });
 
-      // מאזינים לאירוע 'error': אם יש שגיאה במהלך ההזרמה
       dataStream.on('error', (err) => {
         console.error('Stream pipe error:', err);
         reject(err);
@@ -51,11 +63,9 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    // קוד לטיפול בשגיאות שנשאר כמו קודם
     console.error('--- AXIOS ERROR DETAILS ---');
     if (error.response) {
       console.error('Status:', error.response.status);
-      console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
     } else {
       console.error('Error Message:', error.message);
     }
