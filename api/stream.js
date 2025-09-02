@@ -2,9 +2,7 @@ import axios from 'axios';
 import url from 'url';
 import path from 'path';
 
-// Vercel Serverless Function format
 export default async function handler(req, res) {
-  // ודא שהבקשה היא מסוג POST
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).end('Method Not Allowed');
@@ -17,31 +15,43 @@ export default async function handler(req, res) {
   }
 
   try {
-    // בקשה לקבל את הקובץ בתור Stream (צינור נתונים)
     const response = await axios({
       method: 'get',
       url: fileUrl,
       responseType: 'stream',
-      // Header שגורם לבקשה להיראות כאילו היא מגיעה מדפדפן אמיתי
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
       }
     });
 
-    // קביעת שם הקובץ וההדרים לתגובה
     const parsedUrl = new url.URL(fileUrl);
     const fileName = path.basename(parsedUrl.pathname) || 'downloaded-file';
     
-    // חשוב: הגדרת ה-Headers לפני שליחת הנתונים
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', encodeURIComponent(fileName));
     
-    // הקסם: חיבור ה"צינור" הנכנס של ההורדה ישירות ל"צינור" היוצא של התגובה
     response.data.pipe(res);
 
   } catch (error) {
-    console.error('Streaming error:', error.message);
-    // שלח תגובת שגיאה בפורמט JSON
-    res.status(500).json({ error: 'Failed to stream the file.' });
+    // --- קוד דיבוג משופר ---
+    console.error('--- AXIOS ERROR DETAILS ---');
+    if (error.response) {
+      // הבקשה בוצעה והשרת הגיב עם סטטוס שגיאה
+      console.error('Status:', error.response.status);
+      console.error('Headers:', JSON.stringify(error.response.headers, null, 2));
+      console.error('Data:', error.response.data); // זה החלק הכי חשוב, יכול להכיל HTML
+    } else if (error.request) {
+      // הבקשה בוצעה אך לא התקבלה תגובה
+      console.error('Request:', error.request);
+    } else {
+      // שגיאה כללית
+      console.error('Error Message:', error.message);
+    }
+    console.error('--- END OF ERROR DETAILS ---');
+    
+    res.status(500).json({ 
+      error: 'Failed to stream the file. See Vercel logs for details.',
+      status: error.response ? error.response.status : 'N/A' 
+    });
   }
 }
