@@ -3,69 +3,50 @@ import url from 'url';
 import path from 'path';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).end('Method Not Allowed');
-  }
+  // We expect the URL to be a query parameter, e.g., /api/stream?url=...
+  const { fileUrl } = req.query;
 
-  const { fileUrl } = req.body;
   if (!fileUrl) {
-    return res.status(400).json({ error: 'fileUrl is required in the request body' });
+    return res.status(400).send('Missing "url" query parameter');
   }
 
   try {
+    const decodedUrl = decodeURIComponent(fileUrl);
+
     const response = await axios({
       method: 'get',
-      url: fileUrl,
+      url: decodedUrl,
       responseType: 'stream',
       headers: {
         'User-Agent': 'Make/production'
       }
     });
 
-    // --- לוגיקה משודרגת לקביעת שם הקובץ עם דיבוג ---
-    console.log("DEBUG FILENAME: Starting filename detection.");
-    console.log("DEBUG FILENAME: All headers from source:", JSON.stringify(response.headers, null, 2));
-
-    let fileName = 'downloaded_file'; // שם קובץ ברירת מחדל
+    // --- לוגיקה לקביעת שם הקובץ (נשארת זהה) ---
+    let fileName = 'downloaded-file.dat';
     const disposition = response.headers['content-disposition'];
-    console.log(`DEBUG FILENAME: Found Content-Disposition header: ${disposition}`);
     
     if (disposition) {
-      const filenameMatch = disposition.match(/filename=(.*)/i); // Case-insensitive match
-      if (filenameMatch && filenameMatch.length > 1) {
-        fileName = filenameMatch[1];
-        console.log(`DEBUG FILENAME: Extracted filename from Content-Disposition: ${fileName}`);
-      } else {
-        console.log("DEBUG FILENAME: Content-Disposition found, but couldn't extract filename from it.");
+      const filenameMatch = disposition.match(/filename=(.*)/i);
+      if (filenameMatch && filenameMatch[1]) {
+        fileName = filenameMatch[1].replace(/"/g, '').trim();
       }
     } else {
-      console.log("DEBUG FILENAME: No Content-Disposition header found. Falling back to URL path.");
-      const parsedUrl = new url.URL(fileUrl);
+      const parsedUrl = new url.URL(decodedUrl);
       fileName = path.basename(parsedUrl.pathname) || fileName;
-      console.log(`DEBUG FILENAME: Extracted filename from URL path: ${fileName}`);
     }
-    // -----------------------------------------
     
-    console.log(`DEBUG FILENAME: Final filename to be sent: ${fileName}`);
-    const totalSize = response.headers['content-length'];
+    // --- השינוי המרכזי: הגדרת כותרת התגובה ---
+    // This header tells the browser to treat the response as a download
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('X-Filename', encodeURIComponent(fileName));
-    res.setHeader('X-Filesize', totalSize || 0);
-    
-    await new Promise((resolve, reject) => {
-      const dataStream = response.data;
-      dataStream.on('data', chunk => res.write(chunk));
-      dataStream.on('end', () => {
-        res.end();
-        resolve();
-      });
-      dataStream.on('error', (err) => {
-        console.error('Stream pipe error:', err);
-        reject(err);
-      });
-    });
+    // We can also pass the content type from the source
+    if (response.headers['content-type']) {
+        res.setHeader('Content-Type', response.headers['content-type']);
+    }
+
+    // Stream the file content back to the browser
+    response.data.pipe(res);
 
   } catch (error) {
     console.error('--- AXIOS ERROR DETAILS ---');
@@ -74,10 +55,7 @@ export default async function handler(req, res) {
     } else {
       console.error('Error Message:', error.message);
     }
-    console.error('--- END OF ERROR DETAILS ---');
     
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to stream the file.' });
-    }
+    res.status(500).send(`Failed to stream the file. Error: ${error.message}`);
   }
 }
