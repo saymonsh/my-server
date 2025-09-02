@@ -2,19 +2,72 @@
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>הספרייה הדיגיטלית</title>
+    <title>מנהל הקבצים</title>
     <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>ברוכים הבאים לספרייה הדיגיטלית</h1>
-        <p>
-            כאן אוכל לאחסן קובצי PDF בנושאים שונים.
-        </p>
-        <ul>
-            <li><a href="/dedupmrg1023627583_IE166911460.pdf" target="_blank">dedupmrg1023627583_IE166911460.pdf Y</a></li>
-        </ul>
+        <h1>העלאה ושמירת קבצים</h1>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <input type="file" name="file" required>
+            <button type="submit">העלה קובץ</button>
+        </form>
+        <p id="message"></p>
+        
+        <hr>
+        
+        <h2>קבצים שהועלו</h2>
+        <ul id="fileList">
+            </ul>
     </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const fileList = document.getElementById('fileList');
+        const message = document.getElementById('message');
+
+        // פונקציה לשליחת הקובץ לשרת
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(uploadForm);
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                const result = await response.json();
+
+                if (response.ok) {
+                    message.textContent = result.message;
+                    message.style.color = 'green';
+                    addFileToList(result.filepath, result.filename);
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                message.textContent = `שגיאה: ${error.message}`;
+                message.style.color = 'red';
+            }
+        });
+
+        // פונקציה להוספת קובץ לרשימה בדף
+        function addFileToList(filepath, filename) {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = filepath;
+            a.textContent = filename || filepath.split('/').pop();
+            a.target = "_blank";
+            a.download = ""; // הוספת התכונה download תגרום להורדה ישירה
+            li.appendChild(a);
+            fileList.appendChild(li);
+        }
+
+        // פונקציה לטעינת רשימת הקבצים הקיימים (תוכלו לממש אותה בהמשך)
+        // לצורך בדיקה ראשונית, נדלג על זה כרגע.
+        // אבל ברמה מתקדמת יותר, תצטרכו להגדיר נקודת קצה API שתחזיר רשימה של קבצים מתיקיית 'uploads'.
+    </script>
 </body>
 </html>
