@@ -21,7 +21,11 @@ export default async function handler(req, res) {
     const response = await axios({
       method: 'get',
       url: fileUrl,
-      responseType: 'stream' // המפתח ליעילות בזיכרון
+      responseType: 'stream',
+      // Header שגורם לבקשה להיראות כאילו היא מגיעה מדפדפן אמיתי
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+      }
     });
 
     // קביעת שם הקובץ וההדרים לתגובה
