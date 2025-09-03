@@ -10,6 +10,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <style type="text/tailwindcss">
+        .system-message {
+            @apply fixed top-4 right-4 p-4 rounded-lg shadow-lg max-w-md z-50 transition-all duration-300 transform;
+        }
+        .system-message.success {
+            @apply bg-green-50 text-green-800 border border-green-200;
+        }
+        .system-message.error {
+            @apply bg-red-50 text-red-800 border border-red-200;
+        }
+        .system-message.info {
+            @apply bg-blue-50 text-blue-800 border border-blue-200;
+        }
+        
         :root {
             --primary-color: #137fec;
             --secondary-color: #e0effc;
@@ -68,6 +81,105 @@
     </div>
 
     <script>
+        function showMessage(message, type = 'info') {
+            const existingMessage = document.querySelector('.system-message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+        
+            const messageElement = document.createElement('div');
+            messageElement.className = `system-message ${type}`;
+            
+            const icon = type === 'success' ? 'check_circle' 
+                       : type === 'error' ? 'error' 
+                       : 'info';
+            
+            messageElement.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined">${icon}</span>
+                    <p>${message}</p>
+                </div>
+            `;
+        
+            document.body.appendChild(messageElement);
+        
+            // הנפשה בכניסה
+            requestAnimationFrame(() => {
+                messageElement.style.opacity = '1';
+                messageElement.style.transform = 'translateY(0)';
+            });
+        
+            // הסרה אוטומטית אחרי 3 שניות
+            setTimeout(() => {
+                messageElement.style.opacity = '0';
+                messageElement.style.transform = 'translateY(-20px)';
+                setTimeout(() => messageElement.remove(), 300);
+            }, 3000);
+        }
+        
+        // עדכן את הקריאות להצגת הודעות בקוד הקיים
+        fileInput.addEventListener('change', async () => {
+            const formData = new FormData(uploadForm);
+            
+            showMessage('מעלה קובץ, נא להמתין...', 'info');
+        
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                const result = await response.json();
+        
+                if (response.ok) {
+                    showMessage(result.message, 'success');
+                    await loadFiles();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showMessage(`שגיאה: ${error.message}`, 'error');
+            }
+        });
+        
+        async function deleteFile(url, buttonElement) {
+            if (!confirm('האם אתה בטוח שברצונך למחוק קובץ זה?')) {
+                return;
+            }
+        
+            const row = buttonElement.closest('tr');
+            try {
+                const response = await fetch(`/api/delete?url=${encodeURIComponent(url)}`, {
+                    method: 'DELETE'
+                });
+        
+                const result = await response.json();
+        
+                if (response.ok) {
+                    showMessage('הקובץ נמחק בהצלחה', 'success');
+                    row.remove();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showMessage(`שגיאה במחיקת הקובץ: ${error.message}`, 'error');
+            }
+        }
+
+async function loadFiles() {
+    try {
+        const response = await fetch('/api/list');
+        const files = await response.json();
+        
+        fileListBody.innerHTML = '';
+        files.forEach(file => {
+            addFileToTable(file.filename, file.url);
+        });
+    } catch (error) {
+        showMessage('שגיאה בטעינת רשימת הקבצים', 'error');
+    }
+}
+        
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('file-upload');
         const fileListBody = document.getElementById('file-list');
@@ -180,5 +292,6 @@
     </script>
 </body>
 </html>
+
 
 
