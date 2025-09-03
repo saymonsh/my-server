@@ -130,20 +130,55 @@
         function addFileToTable(filename, filepath) {
             const newRow = document.createElement('tr');
             newRow.classList.add('hover:bg-gray-50');
-
+        
             newRow.innerHTML = `
                 <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-[var(--text-primary)]">${filename}</td>
                 <td class="whitespace-nowrap px-6 py-4 text-sm text-[var(--text-secondary)]">
-                    <a class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700" 
-                       href="${filepath}" 
-                       target="_blank">
-                        <span class="material-symbols-outlined text-base">download</span>
-                        <span>הורד</span>
-                    </a>
+                    <div class="flex items-center gap-4">
+                        <a class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700" 
+                           href="${filepath}" 
+                           target="_blank">
+                            <span class="material-symbols-outlined text-base">download</span>
+                            <span>הורד</span>
+                        </a>
+                        <button onclick="deleteFile('${filepath}', this)"
+                                class="flex items-center gap-1 text-red-600 hover:text-red-700">
+                            <span class="material-symbols-outlined text-base">delete</span>
+                            <span>מחק</span>
+                        </button>
+                    </div>
                 </td>
             `;
             fileListBody.appendChild(newRow);
         }
+        
+        // הוסף פונקציה חדשה למחיקת קובץ
+        async function deleteFile(url, buttonElement) {
+            if (!confirm('האם אתה בטוח שברצונך למחוק קובץ זה?')) {
+                return;
+            }
+        
+            const row = buttonElement.closest('tr');
+            try {
+                const response = await fetch(`/api/delete?url=${encodeURIComponent(url)}`, {
+                    method: 'DELETE'
+                });
+        
+                const result = await response.json();
+        
+                if (response.ok) {
+                    messageDisplay.textContent = 'הקובץ נמחק בהצלחה';
+                    messageDisplay.style.color = 'green';
+                    row.remove();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                messageDisplay.textContent = `שגיאה במחיקת הקובץ: ${error.message}`;
+                messageDisplay.style.color = 'red';
+            }
+        }
     </script>
 </body>
 </html>
+
