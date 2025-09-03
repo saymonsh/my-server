@@ -104,15 +104,15 @@
         function addFileToTable(filename, filepath) {
             const newRow = document.createElement('tr');
             newRow.classList.add('hover:bg-gray-50');
-
+        
             newRow.innerHTML = `
                 <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-[var(--text-primary)]">${filename}</td>
                 <td class="whitespace-nowrap px-6 py-4 text-sm text-[var(--text-secondary)]">
                     <a class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700" 
-                       href="/api/download?filename=${encodeURIComponent(filepath.split('/').pop())}" 
+                       href="${filepath}" 
                        target="_blank">
-                            <span class="material-symbols-outlined text-base">download</span>
-                            <span>הורד</span>
+                        <span class="material-symbols-outlined text-base">download</span>
+                        <span>הורד</span>
                     </a>
                 </td>
             `;
@@ -121,4 +121,5 @@
     </script>
 </body>
 </html>
+
 
