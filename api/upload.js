@@ -1,4 +1,6 @@
 import formidable from 'formidable';
+import { put } from '@vercel/blob';
+import fs from 'fs';
 
 export const config = {
   api: {
@@ -21,24 +23,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'Only PDF files are allowed' });
     }
 
-    // קריאת תוכן הקובץ
-    const fileData = await fetch(uploadedFile.filepath)
-      .then(res => res.blob());
+    // קריאת הקובץ כ-Buffer
+    const fileBuffer = fs.readFileSync(uploadedFile.filepath);
 
-    // העלאה ל-Blob Storage
-    const response = await fetch(
-      `https://api.vercel.com/v1/blobs/${process.env.VERCEL_BLOB_STORE_ID}`, 
+    // העלאה ל-Blob Storage באמצעות @vercel/blob
+    const { url } = await put(
+      uploadedFile.originalFilename, // שם הקובץ לשמירה
+      fileBuffer, // תוכן הקובץ כ-Buffer
       {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${process.env.VERCEL_BLOB_TOKEN}`,
-          'Content-Type': uploadedFile.mimetype
-        },
-        body: fileData
+        access: 'public', // הרשאת גישה ציבורית
+        contentType: uploadedFile.mimetype
       }
     );
 
-    const { url } = await response.json();
+    // מחיקת הקובץ הזמני
+    fs.unlinkSync(uploadedFile.filepath);
 
     res.status(200).json({
       message: 'File uploaded successfully!',
