@@ -12,10 +12,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Attempting to delete URL:', url); // לוג חדש
     await del(url);
+    console.log('Delete successful'); // לוג חדש
     res.status(200).json({ message: 'File deleted successfully' });
   } catch (error) {
-    console.error('Error deleting file:', error);
-    res.status(500).json({ message: 'Failed to delete file', error: error.message });
+    console.error('Detailed error:', error); // לוג חדש ומפורט יותר
+    res.status(500).json({ 
+      message: 'Failed to delete file', 
+      error: error.message,
+      url: url  // מוסיף את ה-URL לתשובת השגיאה
+    });
   }
 }
