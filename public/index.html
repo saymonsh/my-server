@@ -90,6 +90,11 @@
         const fileInput = document.getElementById('file-upload');
         const fileListBody = document.getElementById('file-list');
 
+        let currentPage = 1;
+        const ITEMS_PER_PAGE = 10;
+        let isLoading = false;
+        let cachedFiles = new Map(); // מטמון לקבצים
+
         function showConfirm(message) {
             return new Promise((resolve) => {
                 const existingMessage = document.querySelector('.system-message');
@@ -205,18 +210,115 @@
             fileListBody.appendChild(newRow);
         }
 
-        async function loadFiles() {
+        // פונקציה לטעינת קבצים עם דפדוף
+        async function loadFiles(page = 1, useCache = true) {
             try {
-                const response = await fetch('/api/list');
-                const files = await response.json();
+                if (isLoading) return;
+                isLoading = true;
                 
-                fileListBody.innerHTML = '';
-                files.forEach(file => {
-                    addFileToTable(file.filename, file.url);
-                });
+                // בדיקה אם המידע קיים במטמון
+                const cacheKey = `files_page_${page}`;
+                if (useCache && cachedFiles.has(cacheKey)) {
+                    const cachedData = cachedFiles.get(cacheKey);
+                    renderFiles(cachedData);
+                    isLoading = false;
+                    return;
+                }
+        
+                showLoadingState();
+                
+                const response = await fetch(`/api/list?page=${page}&limit=${ITEMS_PER_PAGE}`);
+                const data = await response.json();
+                
+                // שמירה במטמון
+                cachedFiles.set(cacheKey, data);
+                
+                renderFiles(data);
+                updatePaginationControls(data.pagination);
+                
             } catch (error) {
                 showMessage('שגיאה בטעינת רשימת הקבצים', 'error');
+            } finally {
+                isLoading = false;
+                hideLoadingState();
             }
+        }
+
+        function showLoadingState() {
+            const loadingRow = document.createElement('tr');
+            loadingRow.id = 'loading-row';
+            loadingRow.innerHTML = `
+                <td colspan="2" class="px-6 py-4 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--primary-color)]"></div>
+                        <span>טוען...</span>
+                    </div>
+                </td>
+            `;
+            fileListBody.appendChild(loadingRow);
+        }
+        
+        function hideLoadingState() {
+            const loadingRow = document.getElementById('loading-row');
+            if (loadingRow) {
+                loadingRow.remove();
+            }
+        }
+        
+        // פונקציה לרינדור הקבצים
+        function renderFiles(data) {
+            if (currentPage === 1) {
+                fileListBody.innerHTML = '';
+            }
+            
+            data.files.forEach(file => {
+                addFileToTable(file.filename, file.url);
+            });
+        }
+        
+        // פונקציה להוספת פקדי דפדוף
+        function updatePaginationControls(pagination) {
+            const paginationContainer = document.getElementById('pagination-controls') || createPaginationContainer();
+            
+            paginationContainer.innerHTML = `
+                <div class="flex items-center justify-between px-6 py-3 bg-gray-50">
+                    <button 
+                        ${pagination.currentPage === 1 ? 'disabled' : ''}
+                        onclick="changePage(${pagination.currentPage - 1})"
+                        class="px-3 py-1 rounded ${pagination.currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}"
+                    >
+                        הקודם
+                    </button>
+                    <span class="text-sm text-gray-700">
+                        עמוד ${pagination.currentPage} מתוך ${pagination.totalPages}
+                    </span>
+                    <button 
+                        ${!pagination.hasMore ? 'disabled' : ''}
+                        onclick="changePage(${pagination.currentPage + 1})"
+                        class="px-3 py-1 rounded ${!pagination.hasMore ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}"
+                    >
+                        הבא
+                    </button>
+                </div>
+            `;
+        }
+        
+        function createPaginationContainer() {
+            const container = document.createElement('div');
+            container.id = 'pagination-controls';
+            document.querySelector('.overflow-hidden').appendChild(container);
+            return container;
+        }
+        
+        async function changePage(newPage) {
+            currentPage = newPage;
+            await loadFiles(currentPage);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // ניקוי מטמון בעת העלאה או מחיקה של קבצים
+        function clearCache() {
+            cachedFiles.clear();
         }
 
         async function downloadFile(url, filename) {
@@ -238,41 +340,39 @@
             }
         }
 
+        // עדכון פונקציית המחיקה
         async function deleteFile(url, buttonElement) {
             const shouldDelete = await showConfirm('האם אתה בטוח שברצונך למחוק קובץ זה?');
-            if (!shouldDelete) {
-                return;
-            }
+            if (!shouldDelete) return;
         
-            console.log('Attempting to delete file with URL:', url); // לוג חדש
-            
             const row = buttonElement.closest('tr');
             try {
                 const encodedUrl = encodeURIComponent(url);
-                console.log('Encoded URL:', encodedUrl); // לוג חדש
-                
                 const response = await fetch(`/api/delete?url=${encodedUrl}`, {
                     method: 'DELETE'
                 });
         
                 const result = await response.json();
-                console.log('Delete response:', result); // לוג חדש
         
                 if (response.ok) {
                     showMessage('הקובץ נמחק בהצלחה', 'success');
                     row.remove();
+                    clearCache(); // ניקוי המטמון
+                    // אם הדף הנוכחי ריק, נחזור לדף הקודם
+                    if (fileListBody.children.length === 0 && currentPage > 1) {
+                        await changePage(currentPage - 1);
+                    }
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
-                console.error('Delete error:', error); // לוג חדש
                 showMessage(`שגיאה במחיקת הקובץ: ${error.message}`, 'error');
             }
         }
         
+        // עדכון הטיפול בהעלאת קבצים
         fileInput.addEventListener('change', async () => {
             const formData = new FormData(uploadForm);
-            
             showMessage('מעלה קובץ, נא להמתין...', 'info');
         
             try {
@@ -285,8 +385,9 @@
         
                 if (response.ok) {
                     showMessage('הקובץ הועלה בהצלחה', 'success');
-                    await loadFiles();
-                    fileInput.value = ''; // נקה את שדה הקובץ
+                    clearCache(); // ניקוי המטמון
+                    await loadFiles(1, false); // טעינה מחדש של העמוד הראשון
+                    fileInput.value = '';
                 } else {
                     throw new Error(result.message);
                 }
@@ -300,6 +401,7 @@
     </script>
 </body>
 </html>
+
 
 
 
