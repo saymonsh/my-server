@@ -100,23 +100,42 @@
                 const messageElement = document.createElement('div');
                 messageElement.className = 'system-message info';
                 
-                messageElement.innerHTML = `
-                    <div class="flex flex-col gap-3">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined">help</span>
-                            <p>${message}</p>
-                        </div>
-                        <div class="flex justify-end gap-2">
-                            <button class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-sm" onclick="this.closest('.system-message').remove(); resolve(false);">
-                                ביטול
-                            </button>
-                            <button class="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm" onclick="this.closest('.system-message').remove(); resolve(true);">
-                                מחק
-                            </button>
-                        </div>
-                    </div>
+                const confirmContent = document.createElement('div');
+                confirmContent.className = 'flex flex-col gap-3';
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'flex items-center gap-2';
+                messageContent.innerHTML = `
+                    <span class="material-symbols-outlined">help</span>
+                    <p>${message}</p>
                 `;
         
+                const buttonContainer = document.createElement('div');
+                buttonContainer.className = 'flex justify-end gap-2';
+        
+                const cancelButton = document.createElement('button');
+                cancelButton.className = 'px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-sm';
+                cancelButton.textContent = 'ביטול';
+                cancelButton.addEventListener('click', () => {
+                    messageElement.remove();
+                    resolve(false);
+                });
+        
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm';
+                deleteButton.textContent = 'מחק';
+                deleteButton.addEventListener('click', () => {
+                    messageElement.remove();
+                    resolve(true);
+                });
+        
+                buttonContainer.appendChild(cancelButton);
+                buttonContainer.appendChild(deleteButton);
+                
+                confirmContent.appendChild(messageContent);
+                confirmContent.appendChild(buttonContainer);
+                messageElement.appendChild(confirmContent);
+                
                 document.body.appendChild(messageElement);
         
                 requestAnimationFrame(() => {
@@ -263,5 +282,6 @@
     </script>
 </body>
 </html>
+
 
 
