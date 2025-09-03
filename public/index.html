@@ -24,6 +24,9 @@
         .system-message.info {
             @apply bg-blue-50 text-blue-800 border border-blue-200;
         }
+        .system-message.confirm {
+            @apply bg-white text-gray-800 border border-gray-200;
+        }
         
         :root {
             --primary-color: #137fec;
@@ -86,6 +89,42 @@
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('file-upload');
         const fileListBody = document.getElementById('file-list');
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                const existingMessage = document.querySelector('.system-message');
+                if (existingMessage) {
+                    existingMessage.remove();
+                }
+        
+                const messageElement = document.createElement('div');
+                messageElement.className = 'system-message info';
+                
+                messageElement.innerHTML = `
+                    <div class="flex flex-col gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined">help</span>
+                            <p>${message}</p>
+                        </div>
+                        <div class="flex justify-end gap-2">
+                            <button class="px-3 py-1 rounded bg-gray-100 hover:bg-gray-200 text-sm" onclick="this.closest('.system-message').remove(); resolve(false);">
+                                ביטול
+                            </button>
+                            <button class="px-3 py-1 rounded bg-red-500 hover:bg-red-600 text-white text-sm" onclick="this.closest('.system-message').remove(); resolve(true);">
+                                מחק
+                            </button>
+                        </div>
+                    </div>
+                `;
+        
+                document.body.appendChild(messageElement);
+        
+                requestAnimationFrame(() => {
+                    messageElement.style.opacity = '1';
+                    messageElement.style.transform = 'translateY(0)';
+                });
+            });
+        }
 
         function showMessage(message, type = 'info') {
             const existingMessage = document.querySelector('.system-message');
@@ -163,7 +202,8 @@
         }
 
         async function deleteFile(url, buttonElement) {
-            if (!confirm('האם אתה בטוח שברצונך למחוק קובץ זה?')) {
+            const shouldDelete = await showConfirm('האם אתה בטוח שברצונך למחוק קובץ זה?');
+            if (!shouldDelete) {
                 return;
             }
         
@@ -216,3 +256,4 @@
     </script>
 </body>
 </html>
+
