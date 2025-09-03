@@ -108,9 +108,11 @@
             newRow.innerHTML = `
                 <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-[var(--text-primary)]">${filename}</td>
                 <td class="whitespace-nowrap px-6 py-4 text-sm text-[var(--text-secondary)]">
-                    <a class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700" href="${filepath}" target="_blank" download>
-                        <span class="material-symbols-outlined text-base">download</span>
-                        <span>הורד</span>
+                    <a class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700" 
+                       href="/api/download?filename=${encodeURIComponent(filepath.split('/').pop())}" 
+                       target="_blank">
+                            <span class="material-symbols-outlined text-base">download</span>
+                            <span>הורד</span>
                     </a>
                 </td>
             `;
@@ -119,3 +121,4 @@
     </script>
 </body>
 </html>
+
