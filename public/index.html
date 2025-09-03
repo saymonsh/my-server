@@ -207,13 +207,19 @@
                 return;
             }
         
+            console.log('Attempting to delete file with URL:', url); // לוג חדש
+            
             const row = buttonElement.closest('tr');
             try {
-                const response = await fetch(`/api/delete?url=${encodeURIComponent(url)}`, {
+                const encodedUrl = encodeURIComponent(url);
+                console.log('Encoded URL:', encodedUrl); // לוג חדש
+                
+                const response = await fetch(`/api/delete?url=${encodedUrl}`, {
                     method: 'DELETE'
                 });
         
                 const result = await response.json();
+                console.log('Delete response:', result); // לוג חדש
         
                 if (response.ok) {
                     showMessage('הקובץ נמחק בהצלחה', 'success');
@@ -222,10 +228,11 @@
                     throw new Error(result.message);
                 }
             } catch (error) {
+                console.error('Delete error:', error); // לוג חדש
                 showMessage(`שגיאה במחיקת הקובץ: ${error.message}`, 'error');
             }
         }
-
+        
         fileInput.addEventListener('change', async () => {
             const formData = new FormData(uploadForm);
             
@@ -256,4 +263,5 @@
     </script>
 </body>
 </html>
+
 
