@@ -12,6 +12,8 @@
     <style type="text/tailwindcss">
         .system-message {
             @apply fixed top-4 right-4 p-4 rounded-lg shadow-lg max-w-md z-50 transition-all duration-300 transform;
+            opacity: 0;
+            transform: translateY(-20px);
         }
         .system-message.success {
             @apply bg-green-50 text-green-800 border border-green-200;
@@ -62,13 +64,13 @@
                         <input id="file-upload" type="file" name="file" class="sr-only" accept=".pdf" required>
                     </form>
                 </div>
-                <p id="message" class="text-sm font-medium text-center mb-4"></p>
                 <div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500" scope="col">שם קובץ</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500" scope="col">שם קובץ</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500" scope="col">פעולות</th>
                                 </tr>
                             </thead>
                             <tbody id="file-list" class="divide-y divide-gray-200 bg-white">
@@ -81,6 +83,10 @@
     </div>
 
     <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('file-upload');
+        const fileListBody = document.getElementById('file-list');
+
         function showMessage(message, type = 'info') {
             const existingMessage = document.querySelector('.system-message');
             if (existingMessage) {
@@ -116,128 +122,7 @@
                 setTimeout(() => messageElement.remove(), 300);
             }, 3000);
         }
-        
-        // עדכן את הקריאות להצגת הודעות בקוד הקיים
-        fileInput.addEventListener('change', async () => {
-            const formData = new FormData(uploadForm);
-            
-            showMessage('מעלה קובץ, נא להמתין...', 'info');
-        
-            try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                
-                const result = await response.json();
-        
-                if (response.ok) {
-                    showMessage(result.message, 'success');
-                    await loadFiles();
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                showMessage(`שגיאה: ${error.message}`, 'error');
-            }
-        });
-        
-        async function deleteFile(url, buttonElement) {
-            if (!confirm('האם אתה בטוח שברצונך למחוק קובץ זה?')) {
-                return;
-            }
-        
-            const row = buttonElement.closest('tr');
-            try {
-                const response = await fetch(`/api/delete?url=${encodeURIComponent(url)}`, {
-                    method: 'DELETE'
-                });
-        
-                const result = await response.json();
-        
-                if (response.ok) {
-                    showMessage('הקובץ נמחק בהצלחה', 'success');
-                    row.remove();
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                showMessage(`שגיאה במחיקת הקובץ: ${error.message}`, 'error');
-            }
-        }
 
-async function loadFiles() {
-    try {
-        const response = await fetch('/api/list');
-        const files = await response.json();
-        
-        fileListBody.innerHTML = '';
-        files.forEach(file => {
-            addFileToTable(file.filename, file.url);
-        });
-    } catch (error) {
-        showMessage('שגיאה בטעינת רשימת הקבצים', 'error');
-    }
-}
-        
-        const uploadForm = document.getElementById('uploadForm');
-        const fileInput = document.getElementById('file-upload');
-        const fileListBody = document.getElementById('file-list');
-        const messageDisplay = document.getElementById('message');
-
-        // פונקציה לטעינת רשימת הקבצים מהשרת
-        async function loadFiles() {
-            try {
-                const response = await fetch('/api/list');
-                const files = await response.json();
-                
-                // נקה את הטבלה הקיימת
-                fileListBody.innerHTML = '';
-                
-                // הוסף כל קובץ לטבלה
-                files.forEach(file => {
-                    addFileToTable(file.filename, file.url);
-                });
-            } catch (error) {
-                console.error('Error loading files:', error);
-                messageDisplay.textContent = 'שגיאה בטעינת רשימת הקבצים';
-                messageDisplay.style.color = 'red';
-            }
-        }
-
-        // טען את הקבצים כשהדף נטען
-        document.addEventListener('DOMContentLoaded', loadFiles);
-
-        // טיפול בהעלאת קובץ
-        fileInput.addEventListener('change', async () => {
-            const formData = new FormData(uploadForm);
-            
-            messageDisplay.textContent = 'מעלה קובץ, נא להמתין...';
-            messageDisplay.style.color = '#137fec';
-
-            try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                
-                const result = await response.json();
-
-                if (response.ok) {
-                    messageDisplay.textContent = result.message;
-                    messageDisplay.style.color = 'green';
-                    // טען מחדש את רשימת הקבצים
-                    await loadFiles();
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                messageDisplay.textContent = `שגיאה: ${error.message}`;
-                messageDisplay.style.color = 'red';
-            }
-        });
-
-        // פונקציה להוספת שורה לטבלת הקבצים
         function addFileToTable(filename, filepath) {
             const newRow = document.createElement('tr');
             newRow.classList.add('hover:bg-gray-50');
@@ -262,8 +147,21 @@ async function loadFiles() {
             `;
             fileListBody.appendChild(newRow);
         }
-        
-        // הוסף פונקציה חדשה למחיקת קובץ
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/list');
+                const files = await response.json();
+                
+                fileListBody.innerHTML = '';
+                files.forEach(file => {
+                    addFileToTable(file.filename, file.url);
+                });
+            } catch (error) {
+                showMessage('שגיאה בטעינת רשימת הקבצים', 'error');
+            }
+        }
+
         async function deleteFile(url, buttonElement) {
             if (!confirm('האם אתה בטוח שברצונך למחוק קובץ זה?')) {
                 return;
@@ -278,20 +176,43 @@ async function loadFiles() {
                 const result = await response.json();
         
                 if (response.ok) {
-                    messageDisplay.textContent = 'הקובץ נמחק בהצלחה';
-                    messageDisplay.style.color = 'green';
+                    showMessage('הקובץ נמחק בהצלחה', 'success');
                     row.remove();
                 } else {
                     throw new Error(result.message);
                 }
             } catch (error) {
-                messageDisplay.textContent = `שגיאה במחיקת הקובץ: ${error.message}`;
-                messageDisplay.style.color = 'red';
+                showMessage(`שגיאה במחיקת הקובץ: ${error.message}`, 'error');
             }
         }
+
+        fileInput.addEventListener('change', async () => {
+            const formData = new FormData(uploadForm);
+            
+            showMessage('מעלה קובץ, נא להמתין...', 'info');
+        
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                const result = await response.json();
+        
+                if (response.ok) {
+                    showMessage('הקובץ הועלה בהצלחה', 'success');
+                    await loadFiles();
+                    fileInput.value = ''; // נקה את שדה הקובץ
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showMessage(`שגיאה: ${error.message}`, 'error');
+            }
+        });
+
+        // טען קבצים בטעינת הדף
+        document.addEventListener('DOMContentLoaded', loadFiles);
     </script>
 </body>
 </html>
-
-
-
