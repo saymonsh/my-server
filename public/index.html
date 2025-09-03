@@ -69,6 +69,58 @@
     </div>
 
     <script>
+        // הוסף את הקוד הזה ב-script לפני הקוד הקיים
+        async function loadFiles() {
+            try {
+                const response = await fetch('/api/list');
+                const files = await response.json();
+                
+                // נקה את הטבלה הקיימת
+                fileListBody.innerHTML = '';
+                
+                // הוסף כל קובץ לטבלה
+                files.forEach(file => {
+                    addFileToTable(file.filename, file.url);
+                });
+            } catch (error) {
+                console.error('Error loading files:', error);
+                messageDisplay.textContent = 'שגיאה בטעינת רשימת הקבצים';
+                messageDisplay.style.color = 'red';
+            }
+        }
+        
+        // טען את הקבצים כשהדף נטען
+        document.addEventListener('DOMContentLoaded', loadFiles);
+        
+        // עדכן את הפונקציה addFileToTable כך שתקרא ל-loadFiles אחרי העלאה מוצלחת
+        fileInput.addEventListener('change', async () => {
+            const formData = new FormData(uploadForm);
+            
+            messageDisplay.textContent = 'מעלה קובץ, נא להמתין...';
+            messageDisplay.style.color = '#137fec';
+        
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                const result = await response.json();
+        
+                if (response.ok) {
+                    messageDisplay.textContent = result.message;
+                    messageDisplay.style.color = 'green';
+                    // טען מחדש את רשימת הקבצים במקום להוסיף רק את הקובץ החדש
+                    await loadFiles();
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                messageDisplay.textContent = `שגיאה: ${error.message}`;
+                messageDisplay.style.color = 'red';
+            }
+        });
+        
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('file-upload');
         const fileListBody = document.getElementById('file-list');
@@ -121,5 +173,6 @@
     </script>
 </body>
 </html>
+
 
 
