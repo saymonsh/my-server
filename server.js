@@ -144,10 +144,9 @@ app.post('/api/stream', async (req, res) => {
       responseType: 'stream',
       headers: {
           'User-Agent': 'Make/production',
-          'Accept': '*/*',
+          'Accept': 'application/json, text/plain, */*',
           'Accept-Encoding': 'gzip, deflate',
           'Connection': 'keep-alive',
-          'Referer': 'https://download.nli.org.il/'
         }
     });
 
