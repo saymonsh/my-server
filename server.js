@@ -21,7 +21,7 @@ app.get('/api/list', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const allFiles = await fs.readdir(UPLOADS_DIR);
-    
+
     const files = allFiles.map(filename => ({
         filename: filename,
         url: `/uploads/${filename}`,
@@ -29,7 +29,7 @@ app.get('/api/list', async (req, res) => {
 
     const totalFiles = files.length;
     const totalPages = Math.ceil(totalFiles / limit);
-    
+
     const startIndex = (page - 1) * limit;
     const paginatedFiles = files.slice(startIndex, startIndex + limit);
 
@@ -50,22 +50,22 @@ app.get('/api/list', async (req, res) => {
 
 app.post('/api/upload', (req, res) => {
     const form = formidable({});
-  
+
     form.parse(req, async (err, fields, files) => {
       if (err) {
         return res.status(500).json({ message: 'Upload failed', error: err.message });
       }
-  
+
       const uploadedFile = files.file[0];
-  
+
       if (uploadedFile.mimetype !== 'application/pdf') {
         return res.status(400).json({ message: 'Only PDF files are allowed' });
       }
-  
+
       try {
         const filePath = path.join(UPLOADS_DIR, uploadedFile.originalFilename);
         await fs.move(uploadedFile.filepath, filePath, { overwrite: true });
-  
+
         res.status(200).json({
           message: 'File uploaded successfully!',
           filename: uploadedFile.originalFilename,
@@ -94,8 +94,8 @@ app.delete('/api/delete', async (req, res) => {
     res.status(200).json({ message: 'File deleted successfully' });
   } catch (error) {
     console.error('Detailed error:', error);
-    res.status(500).json({ 
-      message: 'Failed to delete file', 
+    res.status(500).json({
+      message: 'Failed to delete file',
       error: error.message,
       filename: filename
     });
@@ -104,24 +104,25 @@ app.delete('/api/delete', async (req, res) => {
 
 app.get('/api/download', (req, res) => {
     const { filename } = req.query;
-  
+
     if (!filename) {
       return res.status(400).json({ error: 'Filename is required' });
     }
-  
-    const sanitizedFilename = path.basename(filename);
+
+    const decodedFilename = decodeURIComponent(filename);
+    const sanitizedFilename = path.basename(decodedFilename);
     const filePath = path.join(UPLOADS_DIR, sanitizedFilename);
-  
+
     try {
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found' });
       }
-  
+
       const stat = fs.statSync(filePath);
       res.setHeader('Content-Length', stat.size);
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=${sanitizedFilename}`);
-  
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(sanitizedFilename)}`);
+
       const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {
@@ -142,13 +143,19 @@ app.post('/api/stream', async (req, res) => {
       url: fileUrl,
       responseType: 'stream',
       headers: {
-        'User-Agent': 'Make/production'
-      }
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+            'Referer': 'https://www.google.com/',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,he;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'DNT': '1' // Do Not Track
+          }
     });
 
     let fileName = path.basename(new URL(fileUrl).pathname) || 'downloaded_file';
     const disposition = response.headers['content-disposition'];
-    
+
     if (disposition) {
       const filenameMatch = disposition.match(/filename=(.*)/i);
       if (filenameMatch && filenameMatch.length > 1) {
@@ -157,11 +164,11 @@ app.post('/api/stream', async (req, res) => {
     }
 
     const totalSize = response.headers['content-length'];
-    
+
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', encodeURIComponent(fileName));
     res.setHeader('X-Filesize', totalSize || 0);
-    
+
     response.data.pipe(res);
   } catch (error) {
     console.error('--- AXIOS ERROR DETAILS ---');
@@ -171,7 +178,7 @@ app.post('/api/stream', async (req, res) => {
       console.error('Error Message:', error.message);
     }
     console.error('--- END OF ERROR DETAILS ---');
-    
+
     if (!res.headersSent) {
       res.status(500).json({ error: 'Failed to stream the file.' });
     }
