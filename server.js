@@ -3,6 +3,7 @@ import formidable from 'formidable';
 import fs from 'fs-extra';
 import path from 'path';
 import fetch from 'node-fetch';
+import crypto from 'crypto';
 
 const app = express();
 const port = 3000;
@@ -159,14 +160,26 @@ app.post('/api/stream', async (req, res) => {
 
     // העתקת כל הכותרות מה-Worker לתגובה הסופית
     response.headers.forEach((value, name) => {
-        // וודא שאין העתקה של כותרות שעלולות לשבש את התהליך
         if (!['content-encoding', 'transfer-encoding', 'connection'].includes(name.toLowerCase())) {
             res.setHeader(name, value);
         }
     });
-    
-    // מעביר את הזרם מה-Worker ישירות לתגובה של השרת
-    response.body.pipe(res);
+
+    // קריאת כל הזרם אל בופר
+    const buffer = await response.buffer();
+    console.log(`DEBUG: Successfully read ${buffer.length} bytes into buffer.`);
+
+    // חישוב חשיש (SHA-256) של הבופר
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+    console.log(`DEBUG: SHA-256 Hash of received buffer: ${hash}`);
+
+    // שמירת הקובץ לבדיקה מקומית
+    const tempFilename = `temp_download_${Date.now()}.pdf`;
+    const tempFilePath = path.join(UPLOADS_DIR, tempFilename);
+    fs.writeFileSync(tempFilePath, buffer);
+    console.log(`DEBUG: File saved to ${tempFilePath} for local verification.`);
+
+    res.send(buffer);
 
   } catch (error) {
     console.error('--- STREAMING ERROR ---');
