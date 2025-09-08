@@ -165,11 +165,8 @@ app.post('/api/stream', async (req, res) => {
         }
     });
     
-    // קריאת כל הזרם אל בופר
-    const buffer = await response.buffer();
-    console.log(`DEBUG: Successfully read ${buffer.length} bytes into buffer.`);
-
-    res.send(buffer);
+    // מעביר את הזרם מה-Worker ישירות לתגובה של השרת
+    response.body.pipe(res);
 
   } catch (error) {
     console.error('--- STREAMING ERROR ---');
