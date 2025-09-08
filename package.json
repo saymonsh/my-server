@@ -2,11 +2,15 @@
   "name": "file-streamer",
   "type": "module",
   "version": "1.0.0",
-  "description": "A streaming server for Netfree files on Vercel",
-  "main": "api/stream.js",
+  "description": "A file streaming and management server for Vultr",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
-    "@vercel/blob": "latest",
     "axios": "^1.7.2",
+    "express": "^4.19.2",
+    "fs-extra": "^11.2.0",
     "formidable": "^3.5.1"
   }
 }
