@@ -182,11 +182,6 @@ app.post('/api/stream', async (req, res) => {
     res.setHeader('Content-Length', buffer.length);
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
 
-    // שמירת הקובץ לבדיקה מקומית
-    const tempFilePath = path.join(UPLOADS_DIR, filename);
-    fs.writeFileSync(tempFilePath, buffer);
-    console.log(`DEBUG: File saved to ${tempFilePath} for local verification.`);
-
     res.send(buffer);
 
   } catch (error) {
