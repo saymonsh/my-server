@@ -157,15 +157,13 @@ app.post('/api/stream', async (req, res) => {
       throw new Error(`Failed to stream file from Worker: ${response.status} ${response.statusText}`);
     }
 
-    const totalSize = response.headers.get('content-length');
-    const filename = decodeURIComponent(response.headers.get('X-Filename'));
-    
-    console.log(`DEBUG: Final filename from Worker: ${filename}`);
-    console.log(`DEBUG: Content-Length from Worker: ${totalSize || 'Not provided'}`);
-
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('X-Filename', filename);
-    res.setHeader('X-Filesize', totalSize || 0);
+    // העתקת כל הכותרות מה-Worker לתגובה הסופית
+    response.headers.forEach((value, name) => {
+        // וודא שאין העתקה של כותרות שעלולות לשבש את התהליך
+        if (!['content-encoding', 'transfer-encoding', 'connection'].includes(name.toLowerCase())) {
+            res.setHeader(name, value);
+        }
+    });
 
     let receivedBytes = 0;
     response.body.on('data', chunk => {
