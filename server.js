@@ -151,8 +151,8 @@ app.post('/api/stream', async (req, res) => {
     const response = await fetch(fileUrl, {
       method: 'get',
       headers: BROWSER_HEADERS,
-      retries: 3, // הגדרת ניסיונות חוזרים
-      retryDelay: 1000, // השהייה של 1 שנייה
+      retries: 3,
+      retryDelay: 1000,
     });
 
     if (!response.ok) {
