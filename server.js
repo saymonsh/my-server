@@ -164,22 +164,12 @@ app.post('/api/stream', async (req, res) => {
             res.setHeader(name, value);
         }
     });
-
-    let receivedBytes = 0;
-    response.body.on('data', chunk => {
-        receivedBytes += chunk.length;
-        //console.log(`DEBUG: Received chunk of ${chunk.length} bytes. Total so far: ${receivedBytes}`);
-    });
-
-    response.body.on('end', () => {
-        console.log(`DEBUG: Stream ended successfully. Total bytes received: ${receivedBytes}`);
-    });
     
-    response.body.on('error', (err) => {
-        console.error('DEBUG: Stream error:', err);
-    });
+    // קריאת כל הזרם אל בופר
+    const buffer = await response.buffer();
+    console.log(`DEBUG: Successfully read ${buffer.length} bytes into buffer.`);
 
-    response.body.pipe(res);
+    res.send(buffer);
 
   } catch (error) {
     console.error('--- STREAMING ERROR ---');
