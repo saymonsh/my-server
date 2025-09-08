@@ -2,7 +2,7 @@ import express from 'express';
 import formidable from 'formidable';
 import fs from 'fs-extra';
 import path from 'path';
-import axios from 'axios';
+import fetch from 'node-fetch'; // שימוש ב-node-fetch
 
 const app = express();
 const port = 3000;
@@ -14,6 +14,16 @@ fs.ensureDirSync(UPLOADS_DIR);
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
 app.use(express.json());
+
+// קונפיגורציה של כותרות שמתחזות לדפדפן
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+  'Accept-Language': 'en-US,en;q=0.9,he;q=0.8',
+  'DNT': '1', // Do Not Track
+  'Connection': 'keep-alive',
+  'Upgrade-Insecure-Requests': '1',
+};
 
 // Set up the routes
 app.get('/api/list', async (req, res) => {
@@ -138,43 +148,43 @@ app.post('/api/stream', async (req, res) => {
   }
 
   try {
-    const response = await axios({
+    const response = await fetch(fileUrl, {
       method: 'get',
-      url: fileUrl,
-      responseType: 'stream',
-      headers: {
-        'User-Agent': 'Make/production'
-      }
+      headers: BROWSER_HEADERS,
+      retries: 3, // הגדרת ניסיונות חוזרים
+      retryDelay: 1000, // השהייה של 1 שנייה
     });
 
+    if (!response.ok) {
+      throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
+    }
+
     let fileName = path.basename(new URL(fileUrl).pathname) || 'downloaded_file';
-    const disposition = response.headers['content-disposition'];
+    const disposition = response.headers.get('content-disposition');
 
     if (disposition) {
-      const filenameMatch = disposition.match(/filename=(.*)/i);
+      const filenameMatch = disposition.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
       if (filenameMatch && filenameMatch.length > 1) {
-        fileName = filenameMatch[1];
+        fileName = decodeURIComponent(filenameMatch[1]);
       }
     }
 
-    const totalSize = response.headers['content-length'];
+    const totalSize = response.headers.get('content-length');
 
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', encodeURIComponent(fileName));
     res.setHeader('X-Filesize', totalSize || 0);
 
-    response.data.pipe(res);
+    // הזרמת הנתונים
+    response.body.pipe(res);
+
   } catch (error) {
-    console.error('--- AXIOS ERROR DETAILS ---');
-    if (error.response) {
-      console.error('Status:', error.response.status);
-    } else {
-      console.error('Error Message:', error.message);
-    }
+    console.error('--- FETCH ERROR DETAILS ---');
+    console.error('Error Message:', error.message);
     console.error('--- END OF ERROR DETAILS ---');
 
     if (!res.headersSent) {
-      res.status(500).json({ error: error.response.status + 'Failed to stream the file.' });
+      res.status(500).json({ error: 'Failed to stream the file.' });
     }
   }
 });
