@@ -174,7 +174,7 @@ app.post('/api/stream', async (req, res) => {
     console.error('--- END OF ERROR DETAILS ---');
 
     if (!res.headersSent) {
-      res.status(500).json({ error: error.response.status 'Failed to stream the file.' });
+      res.status(500).json({ error: error.response.status + 'Failed to stream the file.' });
     }
   }
 });
