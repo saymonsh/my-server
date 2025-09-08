@@ -143,14 +143,12 @@ app.post('/api/stream', async (req, res) => {
       url: fileUrl,
       responseType: 'stream',
       headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-            'Referer': 'https://www.google.com/',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9,he;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'DNT': '1' // Do Not Track
-          }
+          'User-Agent': 'Make/production',
+          'Accept': '*/*',
+          'Accept-Encoding': 'gzip, deflate',
+          'Connection': 'keep-alive',
+          'Referer': 'https://download.nli.org.il/'
+        }
     });
 
     let fileName = path.basename(new URL(fileUrl).pathname) || 'downloaded_file';
