@@ -158,13 +158,6 @@ app.post('/api/stream', async (req, res) => {
       throw new Error(`Failed to stream file from Worker: ${response.status} ${response.statusText}`);
     }
 
-    // העתקת כל הכותרות מה-Worker לתגובה הסופית
-    response.headers.forEach((value, name) => {
-        if (!['content-encoding', 'transfer-encoding', 'connection'].includes(name.toLowerCase())) {
-            res.setHeader(name, value);
-        }
-    });
-
     // קריאת כל הזרם אל בופר
     const buffer = await response.buffer();
     console.log(`DEBUG: Successfully read ${buffer.length} bytes into buffer.`);
@@ -173,9 +166,24 @@ app.post('/api/stream', async (req, res) => {
     const hash = crypto.createHash('sha256').update(buffer).digest('hex');
     console.log(`DEBUG: SHA-256 Hash of received buffer: ${hash}`);
 
+    // קבלת שם הקובץ מהכותרות שהתקבלו
+    const filenameFromHeader = response.headers.get('content-disposition');
+    let filename = 'downloaded_file.pdf';
+    if (filenameFromHeader) {
+      const match = filenameFromHeader.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
+      if (match && match.length > 1) {
+        filename = decodeURIComponent(match[1]);
+      }
+    }
+    console.log(`DEBUG: Final filename from Worker: ${filename}`);
+
+    // הגדרת כותרות התגובה עבור הדפדפן
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+
     // שמירת הקובץ לבדיקה מקומית
-    const tempFilename = `temp_download_${Date.now()}.pdf`;
-    const tempFilePath = path.join(UPLOADS_DIR, tempFilename);
+    const tempFilePath = path.join(UPLOADS_DIR, filename);
     fs.writeFileSync(tempFilePath, buffer);
     console.log(`DEBUG: File saved to ${tempFilePath} for local verification.`);
 
