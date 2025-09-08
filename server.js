@@ -136,26 +136,50 @@ app.post('/api/stream', async (req, res) => {
   const WORKER_URL = 'https://red-violet-ac4b.sns6733229.workers.dev';
 
   if (!fileUrl) {
+    console.error('DEBUG: fileUrl is missing in the request body');
     return res.status(400).json({ error: 'fileUrl is required in the request body' });
   }
-
+  
+  console.log(`DEBUG: Received request to stream file from: ${fileUrl}`);
+  
   try {
     const workerStreamUrl = `${WORKER_URL}?url=${encodeURIComponent(fileUrl)}`;
+    console.log(`DEBUG: Sending request to Worker at: ${workerStreamUrl}`);
     
     const response = await fetch(workerStreamUrl, {
       method: 'get',
     });
+    
+    console.log(`DEBUG: Received response from Worker with status: ${response.status}`);
 
     if (!response.ok) {
+      console.error(`DEBUG: Response from Worker was not OK. Status: ${response.status}, StatusText: ${response.statusText}`);
       throw new Error(`Failed to stream file from Worker: ${response.status} ${response.statusText}`);
     }
 
     const totalSize = response.headers.get('content-length');
     const filename = decodeURIComponent(response.headers.get('X-Filename'));
+    
+    console.log(`DEBUG: Final filename from Worker: ${filename}`);
+    console.log(`DEBUG: Content-Length from Worker: ${totalSize || 'Not provided'}`);
 
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('X-Filename', filename);
     res.setHeader('X-Filesize', totalSize || 0);
+
+    let receivedBytes = 0;
+    response.body.on('data', chunk => {
+        receivedBytes += chunk.length;
+        //console.log(`DEBUG: Received chunk of ${chunk.length} bytes. Total so far: ${receivedBytes}`);
+    });
+
+    response.body.on('end', () => {
+        console.log(`DEBUG: Stream ended successfully. Total bytes received: ${receivedBytes}`);
+    });
+    
+    response.body.on('error', (err) => {
+        console.error('DEBUG: Stream error:', err);
+    });
 
     response.body.pipe(res);
 
