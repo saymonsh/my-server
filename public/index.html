@@ -94,7 +94,7 @@
         let currentPage = 1;
         const ITEMS_PER_PAGE = 10;
         let isLoading = false;
-        let cachedFiles = new Map(); // מטמון לקבצים
+        let cachedFiles = new Map();
 
         function showConfirm(message) {
             return new Promise((resolve) => {
@@ -173,13 +173,11 @@
         
             document.body.appendChild(messageElement);
         
-            // הנפשה בכניסה
             requestAnimationFrame(() => {
                 messageElement.style.opacity = '1';
                 messageElement.style.transform = 'translateY(0)';
             });
         
-            // הסרה אוטומטית אחרי 3 שניות
             setTimeout(() => {
                 messageElement.style.opacity = '0';
                 messageElement.style.transform = 'translateY(-20px)';
@@ -195,12 +193,12 @@
                 <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-[var(--text-primary)]">${filename}</td>
                 <td class="whitespace-nowrap px-6 py-4 text-sm text-[var(--text-secondary)]">
                     <div class="flex items-center gap-4">
-                        <button onclick="downloadFile('${filepath}', '${filename}')"
+                        <a href="/api/download?filename=${encodeURIComponent(filename)}"
                                 class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700">
                             <span class="material-symbols-outlined text-base">download</span>
                             <span>הורד</span>
-                        </button>
-                        <button onclick="deleteFile('${filepath}', this)"
+                        </a>
+                        <button onclick="deleteFile('${filename}', this)"
                                 class="flex items-center gap-1 text-red-600 hover:text-red-700">
                             <span class="material-symbols-outlined text-base">delete</span>
                             <span>מחק</span>
@@ -211,13 +209,11 @@
             fileListBody.appendChild(newRow);
         }
 
-        // פונקציה לטעינת קבצים עם דפדוף
         async function loadFiles(page = 1, useCache = true) {
             try {
                 if (isLoading) return;
                 isLoading = true;
                 
-                // בדיקה אם המידע קיים במטמון
                 const cacheKey = `files_page_${page}`;
                 if (useCache && cachedFiles.has(cacheKey)) {
                     const cachedData = cachedFiles.get(cacheKey);
@@ -231,7 +227,6 @@
                 const response = await fetch(`/api/list?page=${page}&limit=${ITEMS_PER_PAGE}`);
                 const data = await response.json();
                 
-                // שמירה במטמון
                 cachedFiles.set(cacheKey, data);
                 
                 renderFiles(data);
@@ -266,7 +261,6 @@
             }
         }
         
-        // פונקציה לרינדור הקבצים
         function renderFiles(data) {
             if (currentPage === 1) {
                 fileListBody.innerHTML = '';
@@ -277,7 +271,6 @@
             });
         }
         
-        // פונקציה להוספת פקדי דפדוף
         function updatePaginationControls(pagination) {
             const paginationContainer = document.getElementById('pagination-controls') || createPaginationContainer();
             
@@ -317,39 +310,18 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         
-        // ניקוי מטמון בעת העלאה או מחיקה של קבצים
         function clearCache() {
             cachedFiles.clear();
         }
 
-        async function downloadFile(url, filename) {
-            try {
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const downloadUrl = window.URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = filename; // שם הקובץ שיוצע למשתמש
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(downloadUrl);
-            } catch (error) {
-                console.error('Download error:', error);
-                showMessage('שגיאה בהורדת הקובץ', 'error');
-            }
-        }
-
-        // עדכון פונקציית המחיקה
-        async function deleteFile(url, buttonElement) {
+        async function deleteFile(filename, buttonElement) {
             const shouldDelete = await showConfirm('האם אתה בטוח שברצונך למחוק קובץ זה?');
             if (!shouldDelete) return;
         
             const row = buttonElement.closest('tr');
             try {
-                const encodedUrl = encodeURIComponent(url);
-                const response = await fetch(`/api/delete?url=${encodedUrl}`, {
+                const encodedFilename = encodeURIComponent(filename);
+                const response = await fetch(`/api/delete?filename=${encodedFilename}`, {
                     method: 'DELETE'
                 });
         
@@ -358,8 +330,7 @@
                 if (response.ok) {
                     showMessage('הקובץ נמחק בהצלחה', 'success');
                     row.remove();
-                    clearCache(); // ניקוי המטמון
-                    // אם הדף הנוכחי ריק, נחזור לדף הקודם
+                    clearCache();
                     if (fileListBody.children.length === 0 && currentPage > 1) {
                         await changePage(currentPage - 1);
                     }
@@ -371,7 +342,6 @@
             }
         }
         
-        // עדכון הטיפול בהעלאת קבצים
         fileInput.addEventListener('change', async () => {
             const formData = new FormData(uploadForm);
             showMessage('מעלה קובץ, נא להמתין...', 'info');
@@ -386,8 +356,8 @@
         
                 if (response.ok) {
                     showMessage('הקובץ הועלה בהצלחה', 'success');
-                    clearCache(); // ניקוי המטמון
-                    await loadFiles(1, false); // טעינה מחדש של העמוד הראשון
+                    clearCache();
+                    await loadFiles(1, false);
                     fileInput.value = '';
                 } else {
                     throw new Error(result.message);
@@ -397,16 +367,7 @@
             }
         });
 
-        // טען קבצים בטעינת הדף
         document.addEventListener('DOMContentLoaded', loadFiles);
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
