@@ -143,11 +143,8 @@ app.post('/api/stream', async (req, res) => {
       url: fileUrl,
       responseType: 'stream',
       headers: {
-          'User-Agent': 'Make/production',
-          'Accept': 'application/json, text/plain, */*',
-          'Accept-Encoding': 'gzip, deflate',
-          'Connection': 'keep-alive',
-        }
+        'User-Agent': 'Make/production'
+      }
     });
 
     let fileName = path.basename(new URL(fileUrl).pathname) || 'downloaded_file';
