@@ -66,6 +66,7 @@ app.post('/api/upload', (req, res) => {
       try {
         const filePath = path.join(UPLOADS_DIR, uploadedFile.originalFilename);
         await fs.move(uploadedFile.filepath, filePath, { overwrite: true });
+        console.log('file upload successful');
 
         res.status(200).json({
           message: 'File uploaded successfully!',
