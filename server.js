@@ -14,7 +14,8 @@ fs.ensureDirSync(UPLOADS_DIR);
 
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
-app.use(express.json());
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 
 // Set up the routes
 app.get('/api/list', async (req, res) => {
