@@ -50,7 +50,7 @@ app.get('/api/list', async (req, res) => {
 });
 
 app.post('/api/upload', (req, res) => {
-    const form = formidable({});
+    const form = formidable({ maxFileSize: 500 * 1024 * 1024 });
 
     form.parse(req, async (err, fields, files) => {
       if (err) {
