@@ -54,7 +54,7 @@ app.post('/api/upload', (req, res) => {
 
     form.parse(req, async (err, fields, files) => {
       if (err) {
-        consol.error('Error uploading file:', error);
+        console.error('Error uploading file:', err);
         return res.status(500).json({ message: 'Upload failed', error: err.message });
       }
 
@@ -105,99 +105,114 @@ app.delete('/api/delete', async (req, res) => {
   }
 });
 
-app.get('/api/download', (req, res) => {
+// נקודת קצה חדשה המפנה ל-stream
+app.get('/api/download', async (req, res) => {
     const { filename } = req.query;
 
     if (!filename) {
       return res.status(400).json({ error: 'Filename is required' });
     }
 
-    const decodedFilename = decodeURIComponent(filename);
-    const sanitizedFilename = path.basename(decodedFilename);
-    const filePath = path.join(UPLOADS_DIR, sanitizedFilename);
-
     try {
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: 'File not found' });
-      }
+        const response = await fetch(`http://localhost:${port}/api/stream?filename=${encodeURIComponent(filename)}`);
 
-      const stat = fs.statSync(filePath);
-      res.setHeader('Content-Length', stat.size);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(sanitizedFilename)}`);
+        if (!response.ok) {
+            throw new Error(`Failed to stream file: ${response.status} ${response.statusText}`);
+        }
 
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
+        // העברת הכותרות והזרם מהתגובה הפנימית לתגובה החיצונית
+        for (const [key, value] of response.headers.entries()) {
+            res.setHeader(key, value);
+        }
+
+        response.body.pipe(res);
     } catch (error) {
-      console.error('Error downloading file:', error);
-      res.status(500).json({ error: 'Failed to download file' });
+        console.error('Error during internal file streaming:', error);
+        res.status(500).json({ error: 'Failed to download file via stream API' });
     }
 });
 
-app.post('/api/stream', async (req, res) => {
-  const { fileUrl } = req.body;
-  const WORKER_URL = 'https://red-violet-ac4b.sns6733229.workers.dev';
+app.all('/api/stream', async (req, res) => {
+    const { filename } = req.query;
+    const { fileUrl } = req.body;
+    const WORKER_URL = 'https://red-violet-ac4b.sns6733229.workers.dev';
 
-  if (!fileUrl) {
-    console.error('DEBUG: fileUrl is missing in the request body');
-    return res.status(400).json({ error: 'fileUrl is required in the request body' });
-  }
-  
-  console.log(`DEBUG: Received request to stream file from: ${fileUrl}`);
-  
-  try {
-    const workerStreamUrl = `${WORKER_URL}?url=${encodeURIComponent(fileUrl)}`;
-    console.log(`DEBUG: Sending request to Worker at: ${workerStreamUrl}`);
-    
-    const response = await fetch(workerStreamUrl, {
-      method: 'get',
-    });
-    
-    console.log(`DEBUG: Received response from Worker with status: ${response.status}`);
+    if (filename) {
+        // טיפול בהזרמת קובץ מקומי
+        const decodedFilename = decodeURIComponent(filename);
+        const sanitizedFilename = path.basename(decodedFilename);
+        const filePath = path.join(UPLOADS_DIR, sanitizedFilename);
 
-    if (!response.ok) {
-      console.error(`DEBUG: Response from Worker was not OK. Status: ${response.status}, StatusText: ${response.statusText}`);
-      throw new Error(`Failed to stream file from Worker: ${response.status} ${response.statusText}`);
+        try {
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: 'File not found' });
+            }
+
+            const stat = fs.statSync(filePath);
+            res.setHeader('Content-Length', stat.size);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(sanitizedFilename)}`);
+
+            const fileStream = fs.createReadStream(filePath);
+            fileStream.pipe(res);
+        } catch (error) {
+            console.error('Error streaming local file:', error);
+            res.status(500).json({ error: 'Failed to stream local file' });
+        }
+    } else if (fileUrl) {
+        // טיפול בהזרמת קובץ חיצוני באמצעות Worker
+        console.log(`DEBUG: Received request to stream file from: ${fileUrl}`);
+
+        try {
+            const workerStreamUrl = `${WORKER_URL}?url=${encodeURIComponent(fileUrl)}`;
+            console.log(`DEBUG: Sending request to Worker at: ${workerStreamUrl}`);
+
+            const response = await fetch(workerStreamUrl, {
+                method: 'get',
+            });
+
+            console.log(`DEBUG: Received response from Worker with status: ${response.status}`);
+
+            if (!response.ok) {
+                console.error(`DEBUG: Response from Worker was not OK. Status: ${response.status}, StatusText: ${response.statusText}`);
+                throw new Error(`Failed to stream file from Worker: ${response.status} ${response.statusText}`);
+            }
+
+            const buffer = await response.buffer();
+            console.log(`DEBUG: Successfully read ${buffer.length} bytes into buffer.`);
+
+            const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+            console.log(`DEBUG: SHA-256 Hash of received buffer: ${hash}`);
+
+            const filenameFromHeader = response.headers.get('content-disposition');
+            let filename = 'downloaded_file.pdf';
+            if (filenameFromHeader) {
+                const match = filenameFromHeader.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
+                if (match && match.length > 1) {
+                    filename = decodeURIComponent(match[1]);
+                }
+            }
+            console.log(`DEBUG: Final filename from Worker: ${filename}`);
+
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Length', buffer.length);
+            res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+
+            res.send(buffer);
+        } catch (error) {
+            console.error('--- STREAMING ERROR ---');
+            console.error('Error Message:', error.message);
+            console.error('--- END OF ERROR DETAILS ---');
+
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Failed to stream the file via proxy.' });
+            }
+        }
+    } else {
+        res.status(400).json({ error: 'Filename or fileUrl is required' });
     }
-
-    // קריאת כל הזרם אל בופר
-    const buffer = await response.buffer();
-    console.log(`DEBUG: Successfully read ${buffer.length} bytes into buffer.`);
-
-    // חישוב חשיש (SHA-256) של הבופר
-    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
-    console.log(`DEBUG: SHA-256 Hash of received buffer: ${hash}`);
-
-    // קבלת שם הקובץ מהכותרות שהתקבלו
-    const filenameFromHeader = response.headers.get('content-disposition');
-    let filename = 'downloaded_file.pdf';
-    if (filenameFromHeader) {
-      const match = filenameFromHeader.match(/filename\*?=(?:UTF-8'')?([^;]+)/i);
-      if (match && match.length > 1) {
-        filename = decodeURIComponent(match[1]);
-      }
-    }
-    console.log(`DEBUG: Final filename from Worker: ${filename}`);
-
-    // הגדרת כותרות התגובה עבור הדפדפן
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', buffer.length);
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
-
-    res.send(buffer);
-
-  } catch (error) {
-    console.error('--- STREAMING ERROR ---');
-    console.error('Error Message:', error.message);
-    console.error('--- END OF ERROR DETAILS ---');
-
-    if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to stream the file via proxy.' });
-    }
-  }
 });
-
 
 app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
+    console.log(`Server is running at http://localhost:${port}`);
 });
