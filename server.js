@@ -54,6 +54,7 @@ app.post('/api/upload', (req, res) => {
 
     form.parse(req, async (err, fields, files) => {
       if (err) {
+        consol.error('Error uploading file:', error);
         return res.status(500).json({ message: 'Upload failed', error: err.message });
       }
 
