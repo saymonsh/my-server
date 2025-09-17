@@ -10,24 +10,21 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+
     <style type="text/tailwindcss">
         .system-message {
             @apply fixed top-4 right-4 p-4 rounded-lg shadow-lg max-w-md z-50 transition-all duration-300 transform;
             opacity: 0;
             transform: translateY(-20px);
         }
-        .system-message.success {
-            @apply bg-green-50 text-green-800 border border-green-200;
-        }
-        .system-message.error {
-            @apply bg-red-50 text-red-800 border border-red-200;
-        }
-        .system-message.info {
-            @apply bg-blue-50 text-blue-800 border border-blue-200;
-        }
-        .system-message.confirm {
-            @apply bg-white text-gray-800 border border-gray-200;
-        }
+        .system-message.success { @apply bg-green-50 text-green-800 border border-green-200; }
+        .system-message.error { @apply bg-red-50 text-red-800 border border-red-200; }
+        .system-message.info { @apply bg-blue-50 text-blue-800 border border-blue-200; }
+        .system-message.confirm { @apply bg-white text-gray-800 border border-gray-200; }
         
         :root {
             --primary-color: #137fec;
@@ -86,7 +83,19 @@
         </main>
     </div>
 
+    <div class="fixed bottom-4 left-4">
+        <button id="openTerminalBtn" class="flex items-center justify-center w-14 h-14 bg-gray-800 text-white rounded-full shadow-lg hover:bg-gray-900 focus:outline-none">
+            <span class="material-symbols-outlined">terminal</span>
+        </button>
+    </div>
+
+    <div id="terminalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-black rounded-lg shadow-xl w-11/12 h-5/6 flex flex-col p-2">
+            <div id="terminalContainer" class="w-full h-full"></div>
+        </div>
+    </div>
     <script>
+        // ---- קוד קיים של מנהל הקבצים ----
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('file-upload');
         const fileListBody = document.getElementById('file-list');
@@ -111,10 +120,7 @@
                 
                 const messageContent = document.createElement('div');
                 messageContent.className = 'flex items-center gap-2';
-                messageContent.innerHTML = `
-                    <span class="material-symbols-outlined">help</span>
-                    <p>${message}</p>
-                `;
+                messageContent.innerHTML = `<span class="material-symbols-outlined">help</span><p>${message}</p>`;
         
                 const buttonContainer = document.createElement('div');
                 buttonContainer.className = 'flex justify-end gap-2';
@@ -160,16 +166,9 @@
             const messageElement = document.createElement('div');
             messageElement.className = `system-message ${type}`;
             
-            const icon = type === 'success' ? 'check_circle' 
-                       : type === 'error' ? 'error' 
-                       : 'info';
+            const icon = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info';
             
-            messageElement.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <span class="material-symbols-outlined">${icon}</span>
-                    <p>${message}</p>
-                </div>
-            `;
+            messageElement.innerHTML = `<div class="flex items-center gap-2"><span class="material-symbols-outlined">${icon}</span><p>${message}</p></div>`;
         
             document.body.appendChild(messageElement);
         
@@ -193,15 +192,11 @@
                 <td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-[var(--text-primary)]">${filename}</td>
                 <td class="whitespace-nowrap px-6 py-4 text-sm text-[var(--text-secondary)]">
                     <div class="flex items-center gap-4">
-                        <a href="/api/download?filename=${encodeURIComponent(filename)}"
-                                class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700">
-                            <span class="material-symbols-outlined text-base">download</span>
-                            <span>הורד</span>
+                        <a href="/api/download?filename=${encodeURIComponent(filename)}" class="flex items-center gap-1 text-[var(--accent-color)] hover:text-blue-700">
+                            <span class="material-symbols-outlined text-base">download</span><span>הורד</span>
                         </a>
-                        <button onclick="deleteFile('${filename}', this)"
-                                class="flex items-center gap-1 text-red-600 hover:text-red-700">
-                            <span class="material-symbols-outlined text-base">delete</span>
-                            <span>מחק</span>
+                        <button onclick="deleteFile('${filename}', this)" class="flex items-center gap-1 text-red-600 hover:text-red-700">
+                            <span class="material-symbols-outlined text-base">delete</span><span>מחק</span>
                         </button>
                     </div>
                 </td>
@@ -243,14 +238,7 @@
         function showLoadingState() {
             const loadingRow = document.createElement('tr');
             loadingRow.id = 'loading-row';
-            loadingRow.innerHTML = `
-                <td colspan="2" class="px-6 py-4 text-center">
-                    <div class="flex items-center justify-center gap-2">
-                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--primary-color)]"></div>
-                        <span>טוען...</span>
-                    </div>
-                </td>
-            `;
+            loadingRow.innerHTML = `<td colspan="2" class="px-6 py-4 text-center"><div class="flex items-center justify-center gap-2"><div class="animate-spin rounded-full h-5 w-5 border-b-2 border-[var(--primary-color)]"></div><span>טוען...</span></div></td>`;
             fileListBody.appendChild(loadingRow);
         }
         
@@ -273,28 +261,7 @@
         
         function updatePaginationControls(pagination) {
             const paginationContainer = document.getElementById('pagination-controls') || createPaginationContainer();
-            
-            paginationContainer.innerHTML = `
-                <div class="flex items-center justify-between px-6 py-3 bg-gray-50">
-                    <button 
-                        ${pagination.currentPage === 1 ? 'disabled' : ''}
-                        onclick="changePage(${pagination.currentPage - 1})"
-                        class="px-3 py-1 rounded ${pagination.currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}"
-                    >
-                        הקודם
-                    </button>
-                    <span class="text-sm text-gray-700">
-                        עמוד ${pagination.currentPage} מתוך ${pagination.totalPages}
-                    </span>
-                    <button 
-                        ${!pagination.hasMore ? 'disabled' : ''}
-                        onclick="changePage(${pagination.currentPage + 1})"
-                        class="px-3 py-1 rounded ${!pagination.hasMore ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}"
-                    >
-                        הבא
-                    </button>
-                </div>
-            `;
+            paginationContainer.innerHTML = `<div class="flex items-center justify-between px-6 py-3 bg-gray-50"><button ${pagination.currentPage === 1 ? 'disabled' : ''} onclick="changePage(${pagination.currentPage - 1})" class="px-3 py-1 rounded ${pagination.currentPage === 1 ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}">הקודם</button><span class="text-sm text-gray-700">עמוד ${pagination.currentPage} מתוך ${pagination.totalPages}</span><button ${!pagination.hasMore ? 'disabled' : ''} onclick="changePage(${pagination.currentPage + 1})" class="px-3 py-1 rounded ${!pagination.hasMore ? 'bg-gray-100 text-gray-400' : 'bg-white hover:bg-gray-50'}">הבא</button></div>`;
         }
         
         function createPaginationContainer() {
@@ -321,10 +288,7 @@
             const row = buttonElement.closest('tr');
             try {
                 const encodedFilename = encodeURIComponent(filename);
-                const response = await fetch(`/api/delete?filename=${encodedFilename}`, {
-                    method: 'DELETE'
-                });
-        
+                const response = await fetch(`/api/delete?filename=${encodedFilename}`, { method: 'DELETE' });
                 const result = await response.json();
         
                 if (response.ok) {
@@ -347,13 +311,8 @@
             showMessage('מעלה קובץ, נא להמתין...', 'info');
         
             try {
-                const response = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-                
+                const response = await fetch('/api/upload', { method: 'POST', body: formData, });
                 const result = await response.json();
-        
                 if (response.ok) {
                     showMessage('הקובץ הועלה בהצלחה', 'success');
                     clearCache();
@@ -367,7 +326,60 @@
             }
         });
 
-        document.addEventListener('DOMContentLoaded', loadFiles);
+        document.addEventListener('DOMContentLoaded', () => loadFiles());
+
+        // ---- קוד חדש של הטרמינל ----
+        const openTerminalBtn = document.getElementById('openTerminalBtn');
+        const terminalModal = document.getElementById('terminalModal');
+        const terminalContainer = document.getElementById('terminalContainer');
+
+        let ws;
+        const term = new Terminal({ cursorBlink: true, theme: { background: '#000000' } });
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+
+        openTerminalBtn.addEventListener('click', () => {
+            terminalModal.classList.remove('hidden');
+            terminalModal.classList.add('flex');
+            
+            if (!term.element) {
+                term.open(terminalContainer);
+            }
+            fitAddon.fit();
+            term.focus();
+
+            // התחברות ל-WebSocket
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${protocol}://${window.location.host}/terminal`);
+
+            ws.onopen = () => { term.write('Terminal Connected\r\n'); };
+            ws.onmessage = (event) => { term.write(event.data); };
+            ws.onerror = (err) => { term.write('\r\n\x1b[31mConnection Failed. Ensure your client certificate is installed and valid.\x1b[0m'); };
+            ws.onclose = () => { term.write('\r\n\x1b[31mConnection Closed.\x1b[0m'); };
+        });
+
+        // סגירת המודאל בלחיצה על הרקע
+        terminalModal.addEventListener('click', (e) => {
+            if (e.target === terminalModal) {
+                terminalModal.classList.add('hidden');
+                terminalModal.classList.remove('flex');
+                if (ws) ws.close();
+            }
+        });
+
+        // שליחת קלט מהטרמינל לשרת
+        term.onData(data => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(data);
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if(term.element){
+                fitAddon.fit();
+            }
+        });
+
     </script>
 </body>
 </html>
