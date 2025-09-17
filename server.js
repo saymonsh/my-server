@@ -4,10 +4,19 @@ import fs from 'fs-extra';
 import path from 'path';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+import expressWs from 'express-ws';
+import * as pty from 'node-pty';
+import os from 'os';
 
 const app = express();
 const port = 3000;
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+
+// מפעיל את התמיכה ב-WebSockets
+expressWs(app);
+
+// הגדרת סוג הטרמינל לפי מערכת ההפעלה
+const shell = os.platform() === 'win32' ? 'powershell.exe' : 'bash';
 
 // Create the uploads directory if it doesn't exist
 fs.ensureDirSync(UPLOADS_DIR);
@@ -227,6 +236,41 @@ app.post('/api/stream', async (req, res) => {
       res.status(500).json({ error: 'Failed to stream the file via proxy.' });
     }
   }
+});
+
+// נקודת הקצה (Endpoint) של הטרמינל
+// Nginx מוודא שרק משתמשים עם תעודה תקפה מגיעים לכאן
+app.ws('/terminal', (ws, req) => {
+  console.log('Authenticated user connected to terminal WebSocket.');
+
+  // יצירת תהליך טרמינל חדש עבור המשתמש שהתחבר
+  const ptyProcess = pty.spawn(shell, [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 30,
+    cwd: process.env.HOME, // הטרמינל יתחיל בתיקיית הבית
+    env: process.env
+  });
+
+  // הזרמת הפלט מהטרמינל חזרה לדפדפן
+  ptyProcess.onData((data) => {
+    try {
+      ws.send(data);
+    } catch (e) {
+      console.log("Could not send data to closed WebSocket", e);
+    }
+  });
+
+  // קבלת קלט מהדפדפן והעברתו לטרמינל
+  ws.on('message', (msg) => {
+    ptyProcess.write(msg);
+  });
+
+  // סגירת תהליך הטרמינל כשהחיבור נסגר
+  ws.on('close', () => {
+    ptyProcess.kill();
+    console.log('Terminal session closed.');
+  });
 });
 
 app.listen(port, () => {
