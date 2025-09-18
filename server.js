@@ -248,8 +248,7 @@ app.ws('/terminal', (ws, req) => {
     name: 'xterm-color',
     cols: 80,
     rows: 30,
-    cwd: process.cwd(), // הטרמינל יתחיל בתיקיית הבית
-    env: process.env
+    cwd: process.cwd() // הטרמינל יתחיל בתיקיית הבית
   });
 
   // הזרמת הפלט מהטרמינל חזרה לדפדפן
