@@ -248,7 +248,7 @@ app.ws('/terminal', (ws, req) => {
     name: 'xterm-color',
     cols: 80,
     rows: 30,
-    cwd: process.env.HOME, // הטרמינל יתחיל בתיקיית הבית
+    cwd: process.cwd(), // הטרמינל יתחיל בתיקיית הבית
     env: process.env
   });
 
