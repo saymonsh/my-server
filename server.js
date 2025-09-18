@@ -242,12 +242,17 @@ app.post('/api/stream', async (req, res) => {
 // Nginx מוודא שרק משתמשים עם תעודה תקפה מגיעים לכאן
 app.ws('/terminal', (ws, req) => {
   console.log('Authenticated user connected to terminal WebSocket.');
+  
+  const commandToRun = ['-c', `cd ${process.cwd()} && exec ${shell}`];
 
-  // יצירת תהליך טרמינל חדש עבור המשתמש שהתחבר
-  const ptyProcess = pty.spawn(shell, [
-      '-c', 
-      `cd ${process.cwd()} && exec ${shell}`
-    ], {
+  // ---- הוסף את 4 השורות הבאות ----
+  console.log('--- DEBUG: Spawning terminal process ---');
+  console.log(`[DEBUG] Shell: ${shell}`);
+  console.log(`[DEBUG] CWD (from process): ${process.cwd()}`);
+  console.log(`[DEBUG] Full command: ${shell} ${commandToRun.join(' ')}`);
+  // ------------------------------------
+
+  const ptyProcess = pty.spawn(shell, commandToRun, {
     name: 'xterm-color',
     cols: 80,
     rows: 30,
