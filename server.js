@@ -244,15 +244,14 @@ app.ws('/terminal', (ws, req) => {
   console.log('Authenticated user connected to terminal WebSocket.');
 
   // יצירת תהליך טרמינל חדש עבור המשתמש שהתחבר
-  const ptyProcess = pty.spawn(shell, [], {
+  const ptyProcess = pty.spawn(shell, [
+      '-c', 
+      `cd ${process.cwd()} && exec ${shell}`
+    ], {
     name: 'xterm-color',
     cols: 80,
     rows: 30,
-    cwd: process.cwd(), // הטרמינל יתחיל בתיקיית הבית
-    env: {
-      ...process.env,       // מעתיק את כל משתני הסביבה הקיימים
-      HOME: process.cwd(), // ודורס את משתנה הבית להיות תיקיית הפרויקט
-    }
+    env: process.env
   });
 
   // הזרמת הפלט מהטרמינל חזרה לדפדפן
