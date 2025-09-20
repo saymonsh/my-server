@@ -11,10 +11,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
-
     <style type="text/tailwindcss">
         .system-message {
             @apply fixed top-4 right-4 p-4 rounded-lg shadow-lg max-w-md z-50 transition-all duration-300 transform;
@@ -84,18 +80,13 @@
     </div>
 
     <div class="fixed bottom-4 left-4">
-        <button id="openTerminalBtn" class="flex items-center justify-center w-14 h-14 bg-gray-800 text-white rounded-full shadow-lg hover:bg-gray-900 focus:outline-none">
+        <a href="/terminal/" id="openTerminalBtn" class="flex items-center justify-center w-14 h-14 bg-gray-800 text-white rounded-full shadow-lg hover:bg-gray-900 focus:outline-none">
             <span class="material-symbols-outlined">terminal</span>
-        </button>
+        </a>
     </div>
 
-    <div id="terminalModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-black rounded-lg shadow-xl w-11/12 h-5/6 flex flex-col p-2">
-            <div id="terminalContainer" class="w-full h-full"></div>
-        </div>
-    </div>
     <script>
-        // ---- קוד קיים של מנהל הקבצים ----
+        // ---- קוד של מנהל הקבצים (ללא שינוי) ----
         const uploadForm = document.getElementById('uploadForm');
         const fileInput = document.getElementById('file-upload');
         const fileListBody = document.getElementById('file-list');
@@ -327,58 +318,6 @@
         });
 
         document.addEventListener('DOMContentLoaded', () => loadFiles());
-
-        // ---- קוד חדש של הטרמינל ----
-        const openTerminalBtn = document.getElementById('openTerminalBtn');
-        const terminalModal = document.getElementById('terminalModal');
-        const terminalContainer = document.getElementById('terminalContainer');
-
-        let ws;
-        const term = new Terminal({ cursorBlink: true, theme: { background: '#000000' } });
-        const fitAddon = new FitAddon.FitAddon();
-        term.loadAddon(fitAddon);
-
-        openTerminalBtn.addEventListener('click', () => {
-            terminalModal.classList.remove('hidden');
-            terminalModal.classList.add('flex');
-            
-            if (!term.element) {
-                term.open(terminalContainer);
-            }
-            fitAddon.fit();
-            term.focus();
-
-            // התחברות ל-WebSocket
-            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            ws = new WebSocket(`${protocol}://${window.location.host}/terminal`);
-
-            ws.onopen = () => { term.write('Terminal Connected\r\n'); };
-            ws.onmessage = (event) => { term.write(event.data); };
-            ws.onerror = (err) => { term.write('\r\n\x1b[31mConnection Failed. Ensure your client certificate is installed and valid.\x1b[0m'); };
-            ws.onclose = () => { term.write('\r\n\x1b[31mConnection Closed.\x1b[0m'); };
-        });
-
-        // סגירת המודאל בלחיצה על הרקע
-        terminalModal.addEventListener('click', (e) => {
-            if (e.target === terminalModal) {
-                terminalModal.classList.add('hidden');
-                terminalModal.classList.remove('flex');
-                if (ws) ws.close();
-            }
-        });
-
-        // שליחת קלט מהטרמינל לשרת
-        term.onData(data => {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(data);
-            }
-        });
-
-        window.addEventListener('resize', () => {
-            if(term.element){
-                fitAddon.fit();
-            }
-        });
 
     </script>
 </body>
