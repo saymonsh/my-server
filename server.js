@@ -238,48 +238,6 @@ app.post('/api/stream', async (req, res) => {
   }
 });
 
-// נקודת הקצה (Endpoint) של הטרמינל
-// Nginx מוודא שרק משתמשים עם תעודה תקפה מגיעים לכאן
-app.ws('/terminal', (ws, req) => {
-  console.log('Authenticated user connected to terminal WebSocket.');
-  
-  const commandToRun = ['-c', `cd ${process.cwd()} && exec ${shell}`];
-
-  // ---- הוסף את 4 השורות הבאות ----
-  console.log('--- DEBUG: Spawning terminal process ---');
-  console.log(`[DEBUG] Shell: ${shell}`);
-  console.log(`[DEBUG] CWD (from process): ${process.cwd()}`);
-  console.log(`[DEBUG] Full command: ${shell} ${commandToRun.join(' ')}`);
-  // ------------------------------------
-
-  const ptyProcess = pty.spawn(shell, commandToRun, {
-    name: 'xterm-color',
-    cols: 80,
-    rows: 30,
-    env: process.env
-  });
-
-  // הזרמת הפלט מהטרמינל חזרה לדפדפן
-  ptyProcess.onData((data) => {
-    try {
-      ws.send(data);
-    } catch (e) {
-      console.log("Could not send data to closed WebSocket", e);
-    }
-  });
-
-  // קבלת קלט מהדפדפן והעברתו לטרמינל
-  ws.on('message', (msg) => {
-    ptyProcess.write(msg);
-  });
-
-  // סגירת תהליך הטרמינל כשהחיבור נסגר
-  ws.on('close', () => {
-    ptyProcess.kill();
-    console.log('Terminal session closed.');
-  });
-});
-
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
