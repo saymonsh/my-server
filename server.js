@@ -70,10 +70,6 @@ app.post('/api/upload', (req, res) => {
 
       const uploadedFile = files.file[0];
 
-      if (uploadedFile.mimetype !== 'application/pdf') {
-        return res.status(400).json({ message: 'Only PDF files are allowed' });
-      }
-
       try {
         const filePath = path.join(UPLOADS_DIR, uploadedFile.originalFilename);
         await fs.move(uploadedFile.filepath, filePath, { overwrite: true });
