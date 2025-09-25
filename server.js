@@ -5,7 +5,6 @@ import path from 'path';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
 import expressWs from 'express-ws';
-import * as pty from 'node-pty';
 import os from 'os';
 
 const app = express();
